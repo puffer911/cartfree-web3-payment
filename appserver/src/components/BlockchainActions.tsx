@@ -1,5 +1,4 @@
 import React from 'react';
-import { SendTransaction } from './wagmi/sendTransaction';
 import { Balance } from './wagmi/getBalance';
 import { SwitchChain } from './wagmi/switchNetwork';
 
@@ -17,7 +16,6 @@ export const BlockchainActions: React.FC<BlockchainActionsProps> = ({ isConnecte
         </h3>
         <p>Once connected, you'll be able to:</p>
         <ul>
-          <li>Send transactions</li>
           <li>Check balance</li>
           <li>Switch networks</li>
           <li>Create listings</li>
@@ -33,7 +31,6 @@ export const BlockchainActions: React.FC<BlockchainActionsProps> = ({ isConnecte
         <span className="card-icon">⛓️</span>
         Blockchain Actions
       </h3>
-      <SendTransaction />
       <Balance />
       <SwitchChain />
     </div>

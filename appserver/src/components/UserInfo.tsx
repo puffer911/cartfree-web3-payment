@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface UserInfoProps {
   isConnected: boolean;
@@ -15,6 +15,19 @@ export const UserInfo: React.FC<UserInfoProps> = ({
   userInfo,
   onGetUserInfo
 }) => {
+  const [copyMessage, setCopyMessage] = useState('');
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyMessage('Copied!');
+      setTimeout(() => setCopyMessage(''), 2000);
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+      setCopyMessage('Failed to copy');
+      setTimeout(() => setCopyMessage(''), 2000);
+    }
+  };
   if (!isConnected) {
     return (
       <div className="user-info-card">
@@ -47,8 +60,29 @@ export const UserInfo: React.FC<UserInfoProps> = ({
       </div>
       <div className="info-item">
         <span>Wallet Address:</span>
-        <span>{address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'N/A'}</span>
+        <span 
+          style={{ 
+            wordBreak: 'break-all', 
+            fontSize: '12px', 
+            cursor: address ? 'pointer' : 'default',
+            color: address ? '#0984e3' : '#2d3436'
+          }}
+          onClick={() => address && copyToClipboard(address)}
+          title={address ? 'Click to copy' : ''}
+        >
+          {address || 'N/A'}
+        </span>
       </div>
+      {copyMessage && (
+        <div style={{ 
+          color: '#00b894', 
+          fontSize: '12px', 
+          textAlign: 'center', 
+          marginTop: '5px' 
+        }}>
+          {copyMessage}
+        </div>
+      )}
       <button onClick={onGetUserInfo} className="info-btn">
         Get User Info
       </button>

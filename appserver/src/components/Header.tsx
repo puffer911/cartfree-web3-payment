@@ -18,8 +18,8 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <div className="dashboard-header">
       <div className="brand-title">
-        <span className="brand-icon">🛒</span>
-        Cartfree - Worry free checkout
+        <span className="card-icon">🛒</span>
+        <span className="brand-title-text">Cartfree - Worry free checkout</span>
       </div>
       {isConnected ? (
         <button 
