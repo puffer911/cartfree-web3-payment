@@ -35,6 +35,49 @@ body {
   box-shadow: 0 8px 25px rgba(0,0,0,0.1);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-network-selector {
+  display: flex;
+  align-items: center;
+}
+
+.network-dropdown {
+  background: rgba(255,255,255,0.8);
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: #2d3436;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #0984e3 50%), linear-gradient(135deg, #0984e3 50%, transparent 50%);
+  background-position: calc(100% - 20px) calc(1em + 2px), calc(100% - 15px) calc(1em + 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.network-dropdown:focus {
+  outline: none;
+  border-color: rgba(9, 132, 227, 0.5);
+  box-shadow: 0 0 15px rgba(9, 132, 227, 0.2);
+  background-color: rgba(255,255,255,0.95);
+}
+
+.network-error {
+  color: #ff6b6b;
+  font-size: 12px;
+  margin-left: 10px;
+  background: rgba(255, 107, 107, 0.1);
+  padding: 5px 10px;
+  border-radius: 5px;
+}
+
 .brand-title {
   display: flex;
   align-items: center;

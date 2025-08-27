@@ -1,6 +1,5 @@
 import React from 'react';
 import { Balance } from './wagmi/getBalance';
-import { SwitchChain } from './wagmi/switchNetwork';
 
 interface BlockchainActionsProps {
   isConnected: boolean;
@@ -17,7 +16,6 @@ export const BlockchainActions: React.FC<BlockchainActionsProps> = ({ isConnecte
         <p>Once connected, you'll be able to:</p>
         <ul>
           <li>Check balance</li>
-          <li>Switch networks</li>
           <li>Create listings</li>
           <li>Process payments</li>
         </ul>
@@ -32,7 +30,6 @@ export const BlockchainActions: React.FC<BlockchainActionsProps> = ({ isConnecte
         Blockchain Actions
       </h3>
       <Balance />
-      <SwitchChain />
     </div>
   );
 };
