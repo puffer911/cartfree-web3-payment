@@ -1,0 +1,41 @@
+import React from 'react';
+import { SendTransaction } from './wagmi/sendTransaction';
+import { Balance } from './wagmi/getBalance';
+import { SwitchChain } from './wagmi/switchNetwork';
+
+interface BlockchainActionsProps {
+  isConnected: boolean;
+}
+
+export const BlockchainActions: React.FC<BlockchainActionsProps> = ({ isConnected }) => {
+  if (!isConnected) {
+    return (
+      <div className="blockchain-actions">
+        <h3 className="card-title">
+          <span className="card-icon">⛓️</span>
+          Features
+        </h3>
+        <p>Once connected, you'll be able to:</p>
+        <ul>
+          <li>Send transactions</li>
+          <li>Check balance</li>
+          <li>Switch networks</li>
+          <li>Create listings</li>
+          <li>Process payments</li>
+        </ul>
+      </div>
+    );
+  }
+
+  return (
+    <div className="blockchain-actions">
+      <h3 className="card-title">
+        <span className="card-icon">⛓️</span>
+        Blockchain Actions
+      </h3>
+      <SendTransaction />
+      <Balance />
+      <SwitchChain />
+    </div>
+  );
+};
