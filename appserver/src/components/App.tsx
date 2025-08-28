@@ -15,6 +15,21 @@ function App() {
   const { signMessage, data: signatureData, error: signError, isPending: signPending } = useSignMessage();
   
   const [nonce, setNonce] = useState<string>('');
+
+  // Load nonce from local storage on component mount
+  useEffect(() => {
+    const storedNonce = localStorage.getItem('cartfree_nonce');
+    if (storedNonce) {
+      setNonce(storedNonce);
+    }
+  }, []);
+
+  // Save nonce to local storage whenever it changes
+  useEffect(() => {
+    if (nonce) {
+      localStorage.setItem('cartfree_nonce', nonce);
+    }
+  }, [nonce]);
   const [signature, setSignature] = useState<string>('');
   const [signing, setSigning] = useState(false);
   const [selectedChainId, setSelectedChainId] = useState<number | undefined>(undefined);
@@ -96,6 +111,19 @@ function App() {
         connectLoading={connectLoading}
         disconnectLoading={disconnectLoading}
       />
+
+      {/* Informational message below header */}
+      <div style={{ 
+        margin: '10px 0',
+        textAlign: 'center', 
+        padding: '10px 20px', 
+        backgroundColor: '#f8f9fa', 
+        borderBottom: '1px solid #e9ecef',
+        fontSize: '14px',
+        color: '#6c757d'
+      }}>
+        USDC payment to the seller will be received in Base Sepolia network
+      </div>
 
       <div className="dashboard-content">
         <UserInfo

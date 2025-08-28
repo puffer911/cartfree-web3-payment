@@ -1,12 +1,4 @@
 import React, { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
-console.log(supabaseUrl)
-console.log(888)
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface CheckoutProps {
   isConnected: boolean;
@@ -17,15 +9,13 @@ interface ListingFormData {
   title: string;
   description: string;
   price: number;
-  currency: string;
 }
 
 export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) => {
   const [formData, setFormData] = useState<ListingFormData>({
     title: '',
     description: '',
-    price: 0,
-    currency: 'USDC'
+    price: 0
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -53,54 +43,30 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
     setMessage('');
 
     try {
-      // First, create or get user
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('wallet_address', userAddress)
-        .single();
+      const response = await fetch('/api/listings/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletAddress: userAddress,
+          title: formData.title,
+          description: formData.description,
+          price: formData.price
+        }),
+      });
 
-      let userId = existingUser?.id;
+      const result = await response.json();
 
-      if (!userId) {
-        const { data: newUser, error: userError } = await supabase
-          .from('users')
-          .insert([{ wallet_address: userAddress }])
-          .select('id')
-          .single();
-
-        if (userError) {
-          throw new Error('Failed to create user: ' + userError.message);
-        }
-        userId = newUser.id;
-      }
-
-      // Create listing
-      const { data, error } = await supabase
-        .from('listings')
-        .insert([
-          {
-            seller_id: userId,
-            title: formData.title,
-            description: formData.description,
-            price: formData.price,
-            currency: formData.currency,
-            status: 'active'
-          }
-        ])
-        .select()
-        .single();
-
-      if (error) {
-        throw new Error('Failed to create listing: ' + error.message);
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create listing');
       }
 
       setMessage('Listing created successfully!');
       setFormData({
         title: '',
         description: '',
-        price: 0,
-        currency: 'USDC'
+        price: 0
       });
 
     } catch (error) {
@@ -173,20 +139,6 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
             min="0"
             required
           />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="currency">Currency</label>
-          <select
-            id="currency"
-            name="currency"
-            value={formData.currency}
-            onChange={handleInputChange}
-          >
-            <option value="USDC">USDC</option>
-            <option value="USDT">USDT</option>
-            <option value="ETH">ETH</option>
-          </select>
         </div>
 
         <button
