@@ -4,6 +4,7 @@ import { Header } from "./Header";
 import { UserInfo } from "./UserInfo";
 import { BlockchainActions } from "./BlockchainActions";
 import { Checkout } from "./Checkout";
+import { MarketplaceTabs } from "./MarketplaceTabs";
 import './App.css';
 import { useState, useEffect } from 'react';
 
@@ -139,6 +140,9 @@ function App() {
 
         <Checkout isConnected={isConnected} userAddress={address} />
       </div>
+
+      {/* Marketplace Tabs */}
+      <MarketplaceTabs userAddress={address} />
 
       {connectLoading && <div className="loading">Connecting...</div>}
       {connectError && <div className="error">{connectError.message}</div>}
