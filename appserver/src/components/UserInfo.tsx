@@ -5,7 +5,8 @@ interface UserInfoProps {
   address?: string;
   connector?: { name: string } | null;
   userInfo?: any;
-  onGetUserInfo: () => void;
+  nonce?: string;
+  signature?: string;
 }
 
 export const UserInfo: React.FC<UserInfoProps> = ({
@@ -13,7 +14,8 @@ export const UserInfo: React.FC<UserInfoProps> = ({
   address,
   connector,
   userInfo,
-  onGetUserInfo
+  nonce,
+  signature
 }) => {
   const [copyMessage, setCopyMessage] = useState('');
 
@@ -28,6 +30,7 @@ export const UserInfo: React.FC<UserInfoProps> = ({
       setTimeout(() => setCopyMessage(''), 2000);
     }
   };
+
   if (!isConnected) {
     return (
       <div className="user-info-card">
@@ -83,9 +86,36 @@ export const UserInfo: React.FC<UserInfoProps> = ({
           {copyMessage}
         </div>
       )}
-      <button onClick={onGetUserInfo} className="info-btn">
-        Get User Info
-      </button>
+      {nonce && (
+        <div className="info-item">
+          <span>Nonce:</span>
+          <span 
+            style={{ 
+              wordBreak: 'break-all', 
+              fontSize: '10px',
+              fontFamily: 'monospace',
+              color: '#666'
+            }}
+          >
+            {nonce}
+          </span>
+        </div>
+      )}
+      {signature && (
+        <div className="info-item">
+          <span>Signature:</span>
+          <span 
+            style={{ 
+              wordBreak: 'break-all', 
+              fontSize: '10px',
+              fontFamily: 'monospace',
+              color: '#666'
+            }}
+          >
+            {signature.substring(0, 20)}...{signature.substring(signature.length - 20)}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

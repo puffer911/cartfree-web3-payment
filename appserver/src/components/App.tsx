@@ -18,14 +18,6 @@ function App() {
   const [signature, setSignature] = useState<string>('');
   const [signing, setSigning] = useState(false);
 
-  function uiConsole(...args: any[]): void {
-    const el = document.querySelector("#console>p");
-    if (el) {
-      el.innerHTML = JSON.stringify(args || {}, null, 2);
-      console.log(...args);
-    }
-  }
-
   const generateNonce = () => {
     const newNonce = Math.random().toString(36).substring(2, 15) + 
                      Math.random().toString(36).substring(2, 15);
@@ -36,29 +28,63 @@ function App() {
 
   const handleSignNonce = () => {
     if (!isConnected || !address) {
-      uiConsole('Please connect your wallet first');
       return;
     }
 
     const currentNonce = nonce || generateNonce();
     const message = `Sign in to Cartfree: ${currentNonce}`;
     
-    // For wagmi v2, signMessage is called directly and updates the signatureData
     signMessage({ message });
   };
 
-  // Update signature when signatureData changes
+  // Handle signature response and send to backend
   useEffect(() => {
+    const authenticateWithBackend = async (signature: string) => {
+      try {
+        const response = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            walletAddress: address,
+            nonce: nonce,
+            signature: signature
+          }),
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+          console.log('Authentication successful:', result);
+        } else {
+          console.log('Authentication failed:', result.error);
+        }
+      } catch (error) {
+        console.error('Backend authentication failed:', error);
+      } finally {
+        setSigning(false);
+      }
+    };
+
     if (signatureData) {
       setSignature(signatureData);
-      uiConsole('Signature successful:', { nonce, signature: signatureData });
+      authenticateWithBackend(signatureData);
     }
-  }, [signatureData]);
+  }, [signatureData, address, nonce]);
 
   // Update signing state
   useEffect(() => {
     setSigning(signPending);
   }, [signPending]);
+
+  // Automatically sign nonce when user connects (for non-wallet logins)
+  useEffect(() => {
+    if (isConnected && address && userInfo && !userInfo.walletAddress) {
+      // This is a non-wallet login (like Google), trigger automatic signing
+      handleSignNonce();
+    }
+  }, [isConnected, address, userInfo]);
 
   return (
     <div className="dashboard">
@@ -76,7 +102,8 @@ function App() {
           address={address}
           connector={connector}
           userInfo={userInfo}
-          onGetUserInfo={() => uiConsole(userInfo)}
+          nonce={nonce}
+          signature={signature}
         />
 
         <BlockchainActions isConnected={isConnected} />
@@ -88,57 +115,6 @@ function App() {
       {connectError && <div className="error">{connectError.message}</div>}
       {disconnectLoading && <div className="loading">Disconnecting...</div>}
       {disconnectError && <div className="error">{disconnectError.message}</div>}
-
-      <div id="console" className="console">
-        <p></p>
-      </div>
-
-      {/* Nonce Signing Section */}
-      {isConnected && (
-        <div className="nonce-section" style={{ marginTop: '2rem', padding: '1rem', border: '1px solid #ccc', borderRadius: '8px' }}>
-          <h3 style={{ marginBottom: '1rem' }}>Nonce Signing Test</h3>
-          
-          <button 
-            onClick={handleSignNonce} 
-            disabled={signing}
-            style={{ 
-              padding: '0.5rem 1rem', 
-              backgroundColor: signing ? '#ccc' : '#007bff', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '4px',
-              cursor: signing ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {signing ? 'Signing...' : 'Sign Nonce'}
-          </button>
-
-          {nonce && (
-            <div style={{ marginTop: '1rem' }}>
-              <h4>Nonce:</h4>
-              <code style={{ wordBreak: 'break-all', display: 'block', margin: '0.5rem 0' }}>
-                {nonce}
-              </code>
-            </div>
-          )}
-
-          {signature && (
-            <div style={{ marginTop: '1rem' }}>
-              <h4>Signature:</h4>
-              <code style={{ wordBreak: 'break-all', display: 'block', margin: '0.5rem 0' }}>
-                {signature}
-              </code>
-            </div>
-          )}
-
-          {signError && (
-            <div style={{ marginTop: '1rem', color: 'red' }}>
-              <h4>Error:</h4>
-              <p>{signError.message}</p>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
