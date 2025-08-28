@@ -521,6 +521,78 @@ ul li:before {
   font-weight: 500;
 }
 
+/* Item and Order Cards */
+.items-list, .orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.item-card, .order-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.item-card:hover, .order-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  border-color: rgba(9, 132, 227, 0.3);
+}
+
+.item-card h5, .order-card h5 {
+  margin: 0 0 8px 0;
+  color: #2d3436;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.item-card p, .order-card p {
+  margin: 4px 0;
+  color: rgba(45, 52, 54, 0.7);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.item-price, .order-status, .order-chain {
+  font-weight: 600;
+  color: #0984e3;
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: rgba(9, 132, 227, 0.1);
+  border-radius: 6px;
+  display: inline-block;
+  font-size: 12px;
+}
+
+.item-status {
+  font-weight: 500;
+  color: #00b894;
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: rgba(0, 184, 148, 0.1);
+  border-radius: 6px;
+  display: inline-block;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.item-seller {
+  font-weight: 500;
+  color: #fd79a8;
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: rgba(253, 121, 168, 0.1);
+  border-radius: 6px;
+  display: inline-block;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
 /* Responsive design */
 @media (max-width: 1024px) {
   .dashboard-content {
