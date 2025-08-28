@@ -101,9 +101,9 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
   const isTransferPending = isPending || isContractPending;
 
   return (
-    <div className="send-transaction-container">
-      <h2>Send Transaction</h2>
-      <form onSubmit={submit} className="send-form">
+    <div className="usdc-transfer-container">
+      <h3>Send Transaction</h3>
+      <form onSubmit={submit} className="usdc-form">
         <div className="form-group">
           <label htmlFor="tokenType">Token Type</label>
           <select 

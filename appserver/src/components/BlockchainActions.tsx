@@ -52,7 +52,6 @@ export const BlockchainActions: React.FC<BlockchainActionsProps> = ({ isConnecte
       <Balance key={`${selectedChainId}-${refreshTrigger}`} /> {/* Key to force re-render */}
       
       <div className="send-transaction-section">
-        <h3 className="card-title">Send Transactions</h3>
         <SendTransaction />
       </div>
     </div>
