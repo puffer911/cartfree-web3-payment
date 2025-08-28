@@ -1,42 +1,6 @@
 import { useAccount, useReadContract, useBalance, useChainId } from "wagmi";
-import { formatUnits, getAddress } from "viem";
-
-// USDC Contract ABI (minimal ERC20 ABI for balanceOf)
-const ERC20_ABI = [
-  {
-    constant: true,
-    inputs: [{ name: "_owner", type: "address" }],
-    name: "balanceOf",
-    outputs: [{ name: "balance", type: "uint256" }],
-    type: "function"
-  },
-  {
-    constant: true,
-    inputs: [],
-    name: "decimals",
-    outputs: [{ name: "", type: "uint8" }],
-    type: "function"
-  }
-];
-
-// USDC Sepolia addresses and chain IDs
-const USDC_CONTRACTS = [
-  {
-    name: "Ethereum",
-    address: getAddress("0x1c7D4B196Cb0C7B01D743Fbc6116a902379C7238"),
-    chainId: 11155111
-  },
-  {
-    name: "Arbitrum",
-    address: getAddress("0x75faf114eafb1bdbe2f0316df893fd58ce46aa4d"),
-    chainId: 421614
-  },
-  {
-    name: "Base",
-    address: getAddress("0x036cbd53842c5426634e7929541ec2318f3dcf7e"),
-    chainId: 84532
-  }
-];
+import { formatUnits } from "viem";
+import { ERC20_ABI, USDC_CONTRACTS } from "./config";
 
 export function Balance() {
   const { address } = useAccount();
