@@ -1,6 +1,6 @@
 import { FormEvent, useState, useEffect } from "react";
 import { useWaitForTransactionReceipt, BaseError, useWriteContract, useAccount, useChainId } from "wagmi";
-import { Hex, parseUnits } from "viem";
+import { Hex, parseUnits, padHex } from "viem";
 import { ERC20_ABI, USDC_CONTRACTS, CCTP_ABI, CCTP_CONTRACTS, CHAIN_DOMAINS } from "./config";
 
 interface SendTransactionProps {
@@ -58,7 +58,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
     else {
       const destinationDomain = CHAIN_DOMAINS[destinationChainId as keyof typeof CHAIN_DOMAINS];
       
-      if (!destinationDomain) {
+      if (destinationDomain === undefined || destinationDomain === null) {
         alert('Invalid destination chain for CCTP');
         return;
       }
@@ -79,6 +79,9 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         });
 
         // Then execute CCTP depositForBurn
+        // Convert address to bytes32 by padding with zeros
+        const mintRecipientBytes32 = padHex(to, { size: 32 });
+        
         await writeContractAsync({
           address: cctpContract,
           abi: CCTP_ABI,
@@ -86,7 +89,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
           args: [
             parseUnits(value, 6),
             destinationDomain,
-            to as `0x${string}`,
+            mintRecipientBytes32,
             currentUSDCContract.address
           ]
         });
