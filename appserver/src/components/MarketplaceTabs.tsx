@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 
 interface MarketplaceTabsProps {
   userAddress?: string;
@@ -190,7 +191,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                       const isOwnItem = userAddress && item.seller?.wallet_address?.toLowerCase() === userAddress.toLowerCase();
                       
                       return (
-                        <div key={item.id} className="item-card">
+                        <Link key={item.id} href={`/item/${item.id}`} className="item-card" style={{ textDecoration: 'none' }}>
                           <div className="item-content">
                             <div className="item-info">
                               <div className="item-header">
@@ -220,7 +221,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                               </div>
                             )}
                           </div>
-                        </div>
+                        </Link>
                       );
                     })}
                   </div>
@@ -236,7 +237,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                 ) : (
                   <div className="items-list">
                     {listings.map((listing) => (
-                      <div key={listing.id} className="item-card">
+                      <Link key={listing.id} href={`/item/${listing.id}`} className="item-card" style={{ textDecoration: 'none' }}>
                         <div className="item-content">
                           <div className="item-info">
                             <h5>{listing.title}</h5>
@@ -250,7 +251,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                               </div>
                             )}
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                 )}

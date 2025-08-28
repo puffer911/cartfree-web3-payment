@@ -85,6 +85,12 @@ body {
   font-size: 28px;
   font-weight: 700;
   background-clip: text;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.brand-title:hover {
+  opacity: 0.8;
 }
 .brand-title-text {
   background: linear-gradient(135deg, #0984e3 0%, #00b894 100%);

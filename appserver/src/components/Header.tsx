@@ -1,5 +1,6 @@
 import React from 'react';
 import { useChainId, useSwitchChain, useChains } from 'wagmi';
+import Link from 'next/link';
 
 interface HeaderProps {
   isConnected: boolean;
@@ -34,10 +35,10 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <div className="dashboard-header">
-      <div className="brand-title">
+      <Link href="/" className="brand-title" style={{ textDecoration: 'none' }}>
         <span className="card-icon">🛒</span>
         <span className="brand-title-text">Cartfree - Worry free checkout</span>
-      </div>
+      </Link>
       
       {isConnected ? (
         <div className="header-actions">
