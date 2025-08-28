@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { useWaitForTransactionReceipt, BaseError, useWriteContract, useAccount, useChainId } from "wagmi";
 import { Hex, parseUnits } from "viem";
 import { ERC20_ABI, USDC_CONTRACTS, CCTP_ABI, CCTP_CONTRACTS, CHAIN_DOMAINS } from "./config";
@@ -8,11 +8,19 @@ interface SendTransactionProps {
 }
 
 export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
-  const [destinationChain, setDestinationChain] = useState("");
   const { address } = useAccount();
   const currentChainId = useChainId();
+  const [destinationChain, setDestinationChain] = useState(currentChainId.toString());
   
   const { writeContractAsync, isPending: isContractPending, error } = useWriteContract();
+
+  // Ensure destination chain is always a valid option
+  useEffect(() => {
+    const isValidChain = USDC_CONTRACTS.some(contract => contract.chainId.toString() === destinationChain);
+    if (!isValidChain) {
+      setDestinationChain(currentChainId.toString());
+    }
+  }, [currentChainId, destinationChain]);
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
@@ -103,7 +111,6 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
             onChange={(e) => setDestinationChain(e.target.value)}
             required
           >
-            <option value="">Select Destination Chain</option>
             {USDC_CONTRACTS.map(contract => (
               <option key={contract.chainId} value={contract.chainId}>
                 {contract.name} {contract.chainId === currentChainId ? '(Current)' : ''}
