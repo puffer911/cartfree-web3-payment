@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize Supabase client with server-side credentials
+const supabase = createSupabaseServerClient();
 
 export async function GET(
   request: NextRequest,

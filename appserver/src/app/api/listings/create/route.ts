@@ -3,9 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 
 // Initialize Supabase client with server-side credentials
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createSupabaseServerClient();
 
 export async function POST(request: NextRequest) {
   try {

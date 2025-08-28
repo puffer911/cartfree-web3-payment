@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ItemCard } from './ItemCard';
+import { OrderCard } from './OrderCard';
 
 interface MarketplaceTabsProps {
   userAddress?: string;
@@ -236,13 +237,11 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                 ) : (
                   <div className="orders-list">
                     {sellingOrders.map((order) => (
-                      <div key={order.id} className="order-card">
-                        <h5>{order.listings?.title || 'Unknown Listing'}</h5>
-                        <p>Amount: ${order.amount} USDC</p>
-                        <p>Buyer: {order.buyer?.wallet_address?.substring(0, 8)}...{order.buyer?.wallet_address?.substring(order.buyer.wallet_address.length - 6)}</p>
-                        <div className="order-status">Status: {order.status}</div>
-                        <div className="order-chain">Source: {order.source_chain}</div>
-                      </div>
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        type="selling"
+                      />
                     ))}
                   </div>
                 )}
@@ -257,13 +256,11 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                 ) : (
                   <div className="orders-list">
                     {buyingOrders.map((order) => (
-                      <div key={order.id} className="order-card">
-                        <h5>{order.listings?.title || 'Unknown Listing'}</h5>
-                        <p>Amount: ${order.amount} USDC</p>
-                        <p>Seller: {order.seller?.wallet_address?.substring(0, 8)}...{order.seller?.wallet_address?.substring(order.seller.wallet_address.length - 6)}</p>
-                        <div className="order-status">Status: {order.status}</div>
-                        <div className="order-chain">Source: {order.source_chain}</div>
-                      </div>
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        type="buying"
+                      />
                     ))}
                   </div>
                 )}

@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 // Initialize Supabase client with server-side credentials
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createSupabaseServerClient();
 
 interface BuyRequest {
   walletAddress: string;

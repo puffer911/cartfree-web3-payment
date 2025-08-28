@@ -1,6 +1,7 @@
 import React from 'react';
 import { useChainId, useSwitchChain, useChains } from 'wagmi';
 import Link from 'next/link';
+import { SiWebmoney } from "react-icons/si";
 
 interface HeaderProps {
   isConnected: boolean;
@@ -36,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <div className="dashboard-header">
       <Link href="/" className="brand-title" style={{ textDecoration: 'none' }}>
-        <span className="card-icon">🛒</span>
+<span className="card-icon"><SiWebmoney /></span>
         <span className="brand-title-text">Cartfree - Worry free checkout</span>
       </Link>
       
