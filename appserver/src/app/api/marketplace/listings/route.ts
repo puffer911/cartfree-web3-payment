@@ -26,10 +26,18 @@ export async function GET(request: NextRequest) {
       .single();
 
     if (userError) {
+      // User not found - return empty listings instead of error
+      if (userError.code === 'PGRST116') {
+        return NextResponse.json({
+          success: true,
+          listings: []
+        });
+      }
+      
       console.error('Error fetching user:', userError);
       return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
+        { error: 'Failed to fetch user data' },
+        { status: 500 }
       );
     }
 

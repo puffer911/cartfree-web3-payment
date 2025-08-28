@@ -12,6 +12,8 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
   const [buyingOrders, setBuyingOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [buyLoading, setBuyLoading] = useState<string | null>(null);
+  const [buyMessage, setBuyMessage] = useState<string | null>(null);
 
   const fetchData = async (tab: 'sale' | 'listings' | 'selling' | 'buying') => {
     setLoading(true);
@@ -40,7 +42,19 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
       }
 
       if (requiresAuth && !userAddress) {
-        throw new Error('Wallet connection required');
+        // For authenticated tabs, just set empty arrays instead of error
+        switch (tab) {
+          case 'listings':
+            setListings([]);
+            break;
+          case 'selling':
+            setSellingOrders([]);
+            break;
+          case 'buying':
+            setBuyingOrders([]);
+            break;
+        }
+        return;
       }
 
       const url = requiresAuth ? `${endpoint}?walletAddress=${userAddress}` : endpoint;
@@ -81,6 +95,48 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
     setActiveTab(tab);
   };
 
+  const handleBuyItem = async (item: any) => {
+    if (!userAddress) {
+      setBuyMessage('Please connect your wallet to make a purchase');
+      return;
+    }
+
+    setBuyLoading(item.id);
+    setBuyMessage(null);
+
+    try {
+      const response = await fetch('/api/marketplace/buy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletAddress: userAddress,
+          listingId: item.id,
+          amount: item.price,
+          sourceChain: 'base-sepolia' // Hardcoded as per requirements
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to purchase item');
+      }
+
+      setBuyMessage('Purchase successful! Item added to your orders.');
+      // Refresh the buying orders tab
+      if (activeTab === 'buying') {
+        fetchData('buying');
+      }
+    } catch (err) {
+      console.error('Error purchasing item:', err);
+      setBuyMessage(err instanceof Error ? err.message : 'Failed to purchase item');
+    } finally {
+      setBuyLoading(null);
+    }
+  };
+
   const tabs = [
     { id: 'sale' as const, label: 'Sale', icon: '🏷️' },
     { id: 'listings' as const, label: 'My Listing Items', icon: '📋' },
@@ -115,6 +171,12 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
           <div className="error">{error}</div>
         )}
 
+        {buyMessage && (
+          <div className={`message ${buyMessage.includes('success') ? 'success' : 'error'}`}>
+            {buyMessage}
+          </div>
+        )}
+
         {!loading && !error && (
           <>
             {activeTab === 'sale' && (
@@ -133,6 +195,13 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                         <div className="item-seller">
                           Seller: {item.seller?.wallet_address?.substring(0, 8)}...{item.seller?.wallet_address?.substring(item.seller.wallet_address.length - 6)}
                         </div>
+                        <button
+                          className="buy-btn"
+                          onClick={() => handleBuyItem(item)}
+                          disabled={buyLoading === item.id}
+                        >
+                          {buyLoading === item.id ? 'Processing...' : 'Buy Now'}
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -157,9 +226,6 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                     ))}
                   </div>
                 )}
-                {!userAddress && (
-                  <p className="info-message">Connect your wallet to view your listings.</p>
-                )}
               </div>
             )}
 
@@ -181,9 +247,6 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                     ))}
                   </div>
                 )}
-                {!userAddress && (
-                  <p className="info-message">Connect your wallet to view your selling orders.</p>
-                )}
               </div>
             )}
 
@@ -204,9 +267,6 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                       </div>
                     ))}
                   </div>
-                )}
-                {!userAddress && (
-                  <p className="info-message">Connect your wallet to view your buying orders.</p>
                 )}
               </div>
             )}
