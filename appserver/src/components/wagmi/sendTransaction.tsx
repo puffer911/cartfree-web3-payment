@@ -70,11 +70,11 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
       }
 
       try {
-        // First approve USDC for CCTP contract
+        // First approve USDC for CCTP contract to spend tokens
         await writeContractAsync({
           address: currentUSDCContract.address,
           abi: ERC20_ABI,
-          functionName: 'transfer',
+          functionName: 'approve',
           args: [cctpContract, parseUnits(value, 6)]
         });
 
