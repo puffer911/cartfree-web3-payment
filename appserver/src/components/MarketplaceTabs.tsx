@@ -191,25 +191,34 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                       
                       return (
                         <div key={item.id} className="item-card">
-                          <div className="item-header">
-                            <h5>{item.title}</h5>
-                            {!isOwnItem && (
-                              <button
-                                className="buy-btn"
-                                onClick={() => handleBuyItem(item)}
-                                disabled={buyLoading === item.id}
-                              >
-                                {buyLoading === item.id ? 'Processing...' : 'Buy Now'}
-                              </button>
-                            )}
-                          </div>
-                          <p>{item.description}</p>
-                          <div className="item-details">
-                            <div className="item-price">${item.price} USDC</div>
-                            <div className="item-status">Status: {item.status}</div>
-                            <div className="item-seller">
-                              Seller: {item.seller?.wallet_address?.substring(0, 8)}...{item.seller?.wallet_address?.substring(item.seller.wallet_address.length - 6)}
+                          <div className="item-content">
+                            <div className="item-info">
+                              <div className="item-header">
+                                <h5>{item.title}</h5>
+                              </div>
+                              <p>{item.description}</p>
+                              <div className="item-details">
+                                <div className="item-price">${item.price} USDC</div>
+                                <div className="item-status">Status: {item.status}</div>
+                                <div className="item-seller">
+                                  Seller: {item.seller?.wallet_address?.substring(0, 8)}...{item.seller?.wallet_address?.substring(item.seller.wallet_address.length - 6)}
+                                </div>
+                              </div>
+                              {!isOwnItem && (
+                                <button
+                                  className="buy-btn"
+                                  onClick={() => handleBuyItem(item)}
+                                  disabled={buyLoading === item.id}
+                                >
+                                  {buyLoading === item.id ? 'Processing...' : 'Buy Now'}
+                                </button>
+                              )}
                             </div>
+                            {item.image_url && (
+                              <div className="item-image-right">
+                                <img src={item.image_url} alt={item.title} />
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -228,10 +237,19 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                   <div className="items-list">
                     {listings.map((listing) => (
                       <div key={listing.id} className="item-card">
-                        <h5>{listing.title}</h5>
-                        <p>{listing.description}</p>
-                        <div className="item-price">${listing.price} USDC</div>
-                        <div className="item-status">Status: {listing.status}</div>
+                        <div className="item-content">
+                          <div className="item-info">
+                            <h5>{listing.title}</h5>
+                            <p>{listing.description}</p>
+                            <div className="item-price">${listing.price} USDC</div>
+                            <div className="item-status">Status: {listing.status}</div>
+                          </div>
+                            {listing.image_url && (
+                              <div className="item-image-right">
+                                <img src={listing.image_url} alt={listing.title} />
+                              </div>
+                            )}
+                        </div>
                       </div>
                     ))}
                   </div>

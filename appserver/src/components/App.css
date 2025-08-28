@@ -544,6 +544,43 @@ ul li:before {
   border-color: rgba(9, 132, 227, 0.3);
 }
 
+/* Item Content Layout */
+.item-content {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Item Image Styles - Right Side */
+.item-image-right {
+  flex-shrink: 0;
+  width: 330px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item-image-right img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  object-fit: cover;
+}
+
+/* Buy button in item details */
+.item-details .buy-btn {
+  margin-top: 15px;
+  align-self: flex-start;
+}
+
+/* Buy Button Positioning */
 .item-header {
   display: flex;
   justify-content: space-between;
@@ -618,7 +655,7 @@ ul li:before {
 }
 
 .buy-btn {
-  background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+  background: linear-gradient(135deg, #ec3737 0%, #e64f4f 100%);
   color: white;
   border: none;
   padding: 10px 20px;
@@ -626,7 +663,7 @@ ul li:before {
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  margin-top: 12px;
+  margin-top: 40px;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
 }
@@ -640,6 +677,44 @@ ul li:before {
   background: linear-gradient(135deg, #b2bec3 0%, #636e72 100%);
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+/* Image Upload Styles */
+.form-group small {
+  color: rgba(45,52,54,0.6);
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
+}
+
+.image-preview {
+  margin-top: 15px;
+  text-align: center;
+}
+
+.image-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 2px solid rgba(0,0,0,0.1);
+}
+
+.remove-image-btn {
+  background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 8px;
+  transition: all 0.3s ease;
+}
+
+.remove-image-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(253, 121, 168, 0.3);
 }
 
 /* Responsive design */
@@ -681,5 +756,26 @@ ul li:before {
   .tab-button {
     justify-content: center;
     text-align: center;
+  }
+
+  /* Responsive item layout */
+  .item-content {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .item-image-right {
+    width: 100%;
+    max-width: 330px;
+    margin: 0 auto;
+  }
+
+  .item-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .buy-btn {
+    align-self: flex-start;
   }
 }

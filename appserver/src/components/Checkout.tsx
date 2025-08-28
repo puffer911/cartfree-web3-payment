@@ -9,6 +9,7 @@ interface ListingFormData {
   title: string;
   description: string;
   price: number;
+  image?: File;
 }
 
 export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) => {
@@ -19,6 +20,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -26,6 +28,37 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
       ...prev,
       [name]: name === 'price' ? parseFloat(value) || 0 : value
     }));
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.match(/image\/(jpeg|png)/)) {
+      setMessage('Only JPEG and PNG images are allowed');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage('Image must be less than 5MB');
+      return;
+    }
+
+    setFormData(prev => ({ ...prev, image: file }));
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setFormData(prev => ({ ...prev, image: undefined }));
+    setImagePreview(null);
   };
 
   const createListing = async () => {
@@ -43,17 +76,19 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
     setMessage('');
 
     try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('walletAddress', userAddress);
+      formDataToSend.append('title', formData.title);
+      formDataToSend.append('description', formData.description);
+      formDataToSend.append('price', formData.price.toString());
+      
+      if (formData.image) {
+        formDataToSend.append('image', formData.image);
+      }
+
       const response = await fetch('/api/listings/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          walletAddress: userAddress,
-          title: formData.title,
-          description: formData.description,
-          price: formData.price
-        }),
+        body: formDataToSend,
       });
 
       const result = await response.json();
@@ -68,6 +103,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
         description: '',
         price: 0
       });
+      setImagePreview(null);
 
     } catch (error) {
       console.error('Error creating listing:', error);
@@ -140,6 +176,27 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
             required
           />
         </div>
+
+        <div className="form-group">
+          <label htmlFor="image">Product Image</label>
+          <input
+            type="file"
+            id="image"
+            name="image"
+            accept="image/jpeg,image/png"
+            onChange={handleImageChange}
+          />
+          <small>Max 5MB, JPEG or PNG only</small>
+        </div>
+
+        {imagePreview && (
+          <div className="image-preview">
+            <img src={imagePreview} alt="Preview" />
+            <button type="button" onClick={removeImage} className="remove-image-btn">
+              Remove Image
+            </button>
+          </div>
+        )}
 
         <button
           onClick={createListing}

@@ -7,6 +7,7 @@ CREATE TABLE public.listings (
   title text NOT NULL,
   description text,
   price numeric NOT NULL,
+  image_url text,
   status text DEFAULT 'active'::text,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT listings_pkey PRIMARY KEY (id),

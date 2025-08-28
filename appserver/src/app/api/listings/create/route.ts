@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import sharp from 'sharp';
 
 // Initialize Supabase client with server-side credentials
 const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_KEY!; // Use service role key for server-side operations
-
+const supabaseKey = process.env.SUPABASE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-interface CreateListingRequest {
-  walletAddress: string;
-  title: string;
-  description: string;
-  price: number;
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const { walletAddress, title, description, price }: CreateListingRequest = await request.json();
+    const formData = await request.formData();
+    
+    const walletAddress = formData.get('walletAddress') as string;
+    const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
+    const price = parseFloat(formData.get('price') as string);
+    const imageFile = formData.get('image') as File | null;
 
     // Validate required fields
     if (!walletAddress || !title || !price) {
@@ -33,7 +32,7 @@ export async function POST(request: NextRequest) {
       .eq('wallet_address', walletAddress)
       .single();
 
-    if (userQueryError && userQueryError.code !== 'PGRST116') { // PGRST116 is "not found" error
+    if (userQueryError && userQueryError.code !== 'PGRST116') {
       console.error('Error querying user:', userQueryError);
       return NextResponse.json(
         { error: 'Failed to query user' },
@@ -60,6 +59,64 @@ export async function POST(request: NextRequest) {
       userId = newUser.id;
     }
 
+    let imageUrl = null;
+
+    // Process image if provided
+    if (imageFile) {
+      try {
+        // Convert File to Buffer
+        const arrayBuffer = await imageFile.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Resize and compress image to ~100KB
+        const processedImage = await sharp(buffer)
+          .resize(1200, 800, {
+            fit: 'inside',
+            withoutEnlargement: true
+          })
+          .jpeg({ 
+            quality: 80,
+            progressive: true 
+          })
+          .toBuffer();
+
+        // Generate unique filename
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 15);
+        const fileName = `listings/${userId}/${timestamp}-${randomString}.jpg`;
+
+        // Upload to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('marketplace-images')
+          .upload(fileName, processedImage, {
+            contentType: 'image/jpeg',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          return NextResponse.json(
+            { error: 'Failed to upload image' },
+            { status: 500 }
+          );
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('marketplace-images')
+          .getPublicUrl(fileName);
+
+        imageUrl = publicUrl;
+
+      } catch (imageError) {
+        console.error('Error processing image:', imageError);
+        return NextResponse.json(
+          { error: 'Failed to process image' },
+          { status: 500 }
+        );
+      }
+    }
+
     // Create listing
     const { data: listing, error: listingError } = await supabase
       .from('listings')
@@ -69,6 +126,7 @@ export async function POST(request: NextRequest) {
           title,
           description,
           price,
+          image_url: imageUrl,
           status: 'active'
         }
       ])
