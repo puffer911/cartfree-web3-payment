@@ -17,6 +17,7 @@ function App() {
   const [nonce, setNonce] = useState<string>('');
   const [signature, setSignature] = useState<string>('');
   const [signing, setSigning] = useState(false);
+  const [selectedChainId, setSelectedChainId] = useState<number | undefined>(undefined);
 
   const generateNonce = () => {
     const newNonce = Math.random().toString(36).substring(2, 15) + 
@@ -78,10 +79,10 @@ function App() {
     setSigning(signPending);
   }, [signPending]);
 
-  // Automatically sign nonce when user connects (for non-wallet logins)
+  // Automatically sign nonce when user connects
   useEffect(() => {
-    if (isConnected && address && userInfo && !userInfo.walletAddress) {
-      // This is a non-wallet login (like Google), trigger automatic signing
+    if (isConnected && address && userInfo) {
+      // Trigger automatic signing when user connects
       handleSignNonce();
     }
   }, [isConnected, address, userInfo]);
@@ -106,7 +107,7 @@ function App() {
           signature={signature}
         />
 
-        <BlockchainActions isConnected={isConnected} />
+        <BlockchainActions isConnected={isConnected} selectedChainId={selectedChainId} />
 
         <Checkout isConnected={isConnected} userAddress={address} />
       </div>

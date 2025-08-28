@@ -1,5 +1,5 @@
 import React from 'react';
-import { useChainId, useSwitchChain } from 'wagmi';
+import { useChainId, useSwitchChain, useChains } from 'wagmi';
 
 interface HeaderProps {
   isConnected: boolean;
@@ -16,8 +16,21 @@ export const Header: React.FC<HeaderProps> = ({
   connectLoading,
   disconnectLoading
 }) => {
-  const chainId = useChainId();
+  const [selectedChainId, setSelectedChainId] = React.useState<number | undefined>(useChainId());
   const { chains, switchChain, error } = useSwitchChain();
+  
+  React.useEffect(() => {
+    const storedChainId = localStorage.getItem('selectedChainId');
+    if (storedChainId) {
+      setSelectedChainId(Number(storedChainId));
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (selectedChainId) {
+      localStorage.setItem('selectedChainId', selectedChainId.toString());
+    }
+  }, [selectedChainId]);
 
   return (
     <div className="dashboard-header">
@@ -26,13 +39,18 @@ export const Header: React.FC<HeaderProps> = ({
         <span className="brand-title-text">Cartfree - Worry free checkout</span>
       </div>
       
-{isConnected ? (
+      {isConnected ? (
         <div className="header-actions">
           <div className="header-network-selector">
             <select 
-              value={chainId} 
-              onChange={(e) => switchChain({ chainId: Number(e.target.value) })}
+              value={selectedChainId} 
+              onChange={(e) => {
+                const newChainId = Number(e.target.value);
+                setSelectedChainId(newChainId);
+                switchChain({ chainId: newChainId });
+              }}
               className="network-dropdown"
+              style={{ width: '155px' }} // Adjust width to accommodate longer names
             >
               {chains.map((chain) => (
                 <option key={chain.id} value={chain.id}>

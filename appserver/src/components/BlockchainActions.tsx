@@ -3,9 +3,15 @@ import { Balance } from './wagmi/getBalance';
 
 interface BlockchainActionsProps {
   isConnected: boolean;
+  selectedChainId?: number;
 }
 
-export const BlockchainActions: React.FC<BlockchainActionsProps> = ({ isConnected }) => {
+export const BlockchainActions: React.FC<BlockchainActionsProps> = ({ isConnected, selectedChainId }) => {
+  const [refreshTrigger, setRefreshTrigger] = React.useState(0);
+  
+  const handleRefresh = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
   if (!isConnected) {
     return (
       <div className="blockchain-actions">
@@ -25,11 +31,21 @@ export const BlockchainActions: React.FC<BlockchainActionsProps> = ({ isConnecte
 
   return (
     <div className="blockchain-actions">
-      <h3 className="card-title">
-        <span className="card-icon">⛓️</span>
-        Blockchain Actions
-      </h3>
-      <Balance />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h3 className="card-title">
+          <span className="card-icon">⛓️</span>
+          Balance
+        </h3>
+        <button 
+          onClick={handleRefresh} 
+          className="refresh-btn"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}
+          title="Refresh balance"
+        >
+          🔄
+        </button>
+      </div>
+      <Balance key={`${selectedChainId}-${refreshTrigger}`} /> {/* Key to force re-render */}
     </div>
   );
 };
