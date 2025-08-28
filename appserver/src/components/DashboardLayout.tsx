@@ -32,15 +32,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       />
 
       {/* Informational message below header */}
-      <div style={{ 
-        margin: '10px 0',
-        textAlign: 'center', 
-        padding: '10px 20px', 
-        backgroundColor: '#f8f9fa', 
-        borderBottom: '1px solid #e9ecef',
-        fontSize: '14px',
-        color: '#6c757d'
-      }}>
+      <div className="payment-info-banner">
         USDC payment to the seller will be received in Base Sepolia network
       </div>
 

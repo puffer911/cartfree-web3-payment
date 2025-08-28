@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useAccount } from "wagmi";
 import { DashboardLayout } from "../../../components/DashboardLayout";
+import { ItemCard } from "../../../components/ItemCard";
 import '../../../components/App.css';
 
 interface ItemDetail {
@@ -97,61 +98,33 @@ export default function ItemDetailPage() {
   return (
     <DashboardLayout showDashboardContent={false}>
       {/* Item Detail Section */}
-      <div className="marketplace-tabs">
-        <div className="tab-content">
-          {loading && (
-            <div className="loading">Loading item details...</div>
-          )}
+      <div style={{ padding: '20px' }}>
+        {loading && (
+          <div className="loading">Loading item details...</div>
+        )}
 
-          {error && (
-            <div className="error">{error}</div>
-          )}
+        {error && (
+          <div className="error">{error}</div>
+        )}
 
-          {buyMessage && (
-            <div className={`message ${buyMessage.includes('success') ? 'success' : 'error'}`}>
-              {buyMessage}
-            </div>
-          )}
+        {buyMessage && (
+          <div className={`message ${buyMessage.includes('success') ? 'success' : 'error'}`}>
+            {buyMessage}
+          </div>
+        )}
 
           {!loading && !error && item && (
-            <div className="tab-panel">
-              <div className="item-card" style={{ maxWidth: '800px', margin: '0 auto' }}>
-                <div className="item-content">
-                  <div className="item-info">
-                    <div className="item-header">
-                      <h5>{item.title}</h5>
-                    </div>
-                    <p>{item.description}</p>
-                    <div className="item-details">
-                      <div className="item-price">${item.price} USDC</div>
-                      <div className="item-status">Status: {item.status}</div>
-                      {item.seller && (
-                        <div className="item-seller">
-                          Seller: {item.seller.wallet_address.substring(0, 8)}...{item.seller.wallet_address.substring(item.seller.wallet_address.length - 6)}
-                        </div>
-                      )}
-                      {!isOwnItem && (
-                        <button
-                          className="buy-btn"
-                          onClick={handleBuyItem}
-                          disabled={buyLoading}
-                          style={{ marginTop: '20px' }}
-                        >
-                          {buyLoading ? 'Processing...' : 'Buy Now'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {item.image_url && (
-                    <div className="item-image-right">
-                      <img src={item.image_url} alt={item.title} style={{ maxWidth: '400px' }} />
-                    </div>
-                  )}
-                </div>
-              </div>
+            <div style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
+              <ItemCard
+                item={item}
+                currentUserAddress={address}
+                onBuyItem={handleBuyItem}
+                buyLoading={buyLoading}
+                showBuyButton={true}
+                isClickable={false}
+              />
             </div>
           )}
-        </div>
       </div>
     </DashboardLayout>
   );

@@ -452,6 +452,21 @@ ul li:before {
   backdrop-filter: blur(5px);
 }
 
+/* Payment Info Banner */
+.payment-info-banner {
+  margin: 10px 0;
+  text-align: center;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, rgba(116, 185, 255, 0.1) 0%, rgba(9, 132, 227, 0.15) 100%);
+  border-radius: 12px;
+  font-size: 14px;
+  color: #0984e3;
+  font-weight: 500;
+  border: 1px solid rgba(9, 132, 227, 0.2);
+  backdrop-filter: blur(10px);
+  margin: 15px 0;
+}
+
 /* Marketplace Tabs */
 .marketplace-tabs {
   background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%);

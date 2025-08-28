@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { ItemCard } from './ItemCard';
 
 interface MarketplaceTabsProps {
   userAddress?: string;
@@ -139,10 +139,10 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
   };
 
   const tabs = [
-    { id: 'sale' as const, label: 'Sale', icon: '🏷️' },
-    { id: 'listings' as const, label: 'My Listing Items', icon: '📋' },
-    { id: 'selling' as const, label: 'My Selling Order', icon: '💰' },
-    { id: 'buying' as const, label: 'My Buying Order', icon: '🛒' }
+    { id: 'sale' as const, label: 'All Sale', icon: '🏷️' },
+    { id: 'listings' as const, label: 'My Listing', icon: '📋' },
+    { id: 'selling' as const, label: 'Sold Items', icon: '💰' },
+    { id: 'buying' as const, label: 'My Checkout', icon: '🛒' }
   ];
 
   return (
@@ -191,37 +191,15 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                       const isOwnItem = userAddress && item.seller?.wallet_address?.toLowerCase() === userAddress.toLowerCase();
                       
                       return (
-                        <Link key={item.id} href={`/item/${item.id}`} className="item-card" style={{ textDecoration: 'none' }}>
-                          <div className="item-content">
-                            <div className="item-info">
-                              <div className="item-header">
-                                <h5>{item.title}</h5>
-                              </div>
-                              <p>{item.description}</p>
-                              <div className="item-details">
-                                <div className="item-price">${item.price} USDC</div>
-                                <div className="item-status">Status: {item.status}</div>
-                                <div className="item-seller">
-                                  Seller: {item.seller?.wallet_address?.substring(0, 8)}...{item.seller?.wallet_address?.substring(item.seller.wallet_address.length - 6)}
-                                </div>
-                              </div>
-                              {!isOwnItem && (
-                                <button
-                                  className="buy-btn"
-                                  onClick={() => handleBuyItem(item)}
-                                  disabled={buyLoading === item.id}
-                                >
-                                  {buyLoading === item.id ? 'Processing...' : 'Buy Now'}
-                                </button>
-                              )}
-                            </div>
-                            {item.image_url && (
-                              <div className="item-image-right">
-                                <img src={item.image_url} alt={item.title} />
-                              </div>
-                            )}
-                          </div>
-                        </Link>
+                        <ItemCard
+                          key={item.id}
+                          item={item}
+                          currentUserAddress={userAddress}
+                          onBuyItem={handleBuyItem}
+                          buyLoading={buyLoading === item.id}
+                          showBuyButton={true}
+                          isClickable={true}
+                        />
                       );
                     })}
                   </div>
@@ -237,21 +215,13 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                 ) : (
                   <div className="items-list">
                     {listings.map((listing) => (
-                      <Link key={listing.id} href={`/item/${listing.id}`} className="item-card" style={{ textDecoration: 'none' }}>
-                        <div className="item-content">
-                          <div className="item-info">
-                            <h5>{listing.title}</h5>
-                            <p>{listing.description}</p>
-                            <div className="item-price">${listing.price} USDC</div>
-                            <div className="item-status">Status: {listing.status}</div>
-                          </div>
-                            {listing.image_url && (
-                              <div className="item-image-right">
-                                <img src={listing.image_url} alt={listing.title} />
-                              </div>
-                            )}
-                        </div>
-                      </Link>
+                      <ItemCard
+                        key={listing.id}
+                        item={listing}
+                        currentUserAddress={userAddress}
+                        showBuyButton={false}
+                        isClickable={true}
+                      />
                     ))}
                   </div>
                 )}
