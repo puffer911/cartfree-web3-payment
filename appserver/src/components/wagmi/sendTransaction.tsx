@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
-import { useWaitForTransactionReceipt, useSendTransaction, BaseError, useWriteContract, useAccount, useChainId } from "wagmi";
-import { Hex, parseEther, parseUnits } from "viem";
+import { useWaitForTransactionReceipt, BaseError, useWriteContract, useAccount, useChainId } from "wagmi";
+import { Hex, parseUnits } from "viem";
 import { ERC20_ABI, USDC_CONTRACTS, CCTP_ABI, CCTP_CONTRACTS, CHAIN_DOMAINS } from "./config";
 
 interface SendTransactionProps {
@@ -8,17 +8,15 @@ interface SendTransactionProps {
 }
 
 export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
-  const [isCCTP, setIsCCTP] = useState(false);
   const [destinationChain, setDestinationChain] = useState("");
   const { address } = useAccount();
   const currentChainId = useChainId();
   
-  const { data: hash, error, isPending, sendTransaction } = useSendTransaction();
-  const { writeContractAsync, isPending: isContractPending } = useWriteContract();
+  const { writeContractAsync, isPending: isContractPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
-      hash,
+      hash: undefined,
     });
 
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -26,19 +24,16 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
     const formData = new FormData(e.target as HTMLFormElement);
     const to = formData.get('address') as Hex;
     const value = formData.get('value') as string;
-    const tokenType = formData.get('tokenType') as string;
+    const destinationChainId = parseInt(destinationChain);
 
-    if (tokenType === 'eth') {
-      // Send ETH
-      sendTransaction({ to, value: parseEther(value) });
-    } else if (tokenType === 'usdc') {
-      // Send USDC directly
-      const currentUSDCContract = USDC_CONTRACTS.find(contract => contract.chainId === currentChainId);
-      if (!currentUSDCContract) {
-        alert('USDC not supported on this network');
-        return;
-      }
+    const currentUSDCContract = USDC_CONTRACTS.find(contract => contract.chainId === currentChainId);
+    if (!currentUSDCContract) {
+      alert('USDC not supported on this network');
+      return;
+    }
 
+    // Same chain - direct transfer
+    if (destinationChainId === currentChainId) {
       try {
         await writeContractAsync({
           address: currentUSDCContract.address,
@@ -48,10 +43,11 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         });
       } catch (error) {
         console.error('USDC transfer failed:', error);
+        alert('USDC transfer failed');
       }
-    } else if (tokenType === 'cctp' && destinationChain) {
-      // CCTP V2 cross-chain transfer
-      const destinationChainId = parseInt(destinationChain);
+    } 
+    // Different chain - CCTP cross-chain transfer
+    else {
       const destinationDomain = CHAIN_DOMAINS[destinationChainId as keyof typeof CHAIN_DOMAINS];
       
       if (!destinationDomain) {
@@ -62,12 +58,6 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
       const cctpContract = CCTP_CONTRACTS[currentChainId as keyof typeof CCTP_CONTRACTS];
       if (!cctpContract) {
         alert('CCTP not supported on this network');
-        return;
-      }
-
-      const currentUSDCContract = USDC_CONTRACTS.find(contract => contract.chainId === currentChainId);
-      if (!currentUSDCContract) {
-        alert('USDC not supported on this network');
         return;
       }
 
@@ -94,49 +84,33 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         });
       } catch (error) {
         console.error('CCTP transfer failed:', error);
+        alert('CCTP transfer failed');
       }
     }
   }
 
-  const isTransferPending = isPending || isContractPending;
+  const isTransferPending = isContractPending;
 
   return (
     <div className="usdc-transfer-container">
-      <h3>Send Transaction</h3>
+      <h2>Send USDC</h2>
       <form onSubmit={submit} className="usdc-form">
         <div className="form-group">
-          <label htmlFor="tokenType">Token Type</label>
+          <label htmlFor="destinationChain">Destination Chain</label>
           <select 
-            name="tokenType" 
-            onChange={(e) => {
-              setIsCCTP(e.target.value === 'cctp');
-            }}
+            name="destinationChain" 
+            value={destinationChain}
+            onChange={(e) => setDestinationChain(e.target.value)}
             required
           >
-            <option value="eth">ETH</option>
-            <option value="usdc">USDC</option>
-            <option value="cctp">USDC (CCTP Cross-chain)</option>
+            <option value="">Select Destination Chain</option>
+            {USDC_CONTRACTS.map(contract => (
+              <option key={contract.chainId} value={contract.chainId}>
+                {contract.name} {contract.chainId === currentChainId ? '(Current)' : ''}
+              </option>
+            ))}
           </select>
         </div>
-
-        {isCCTP && (
-          <div className="form-group">
-            <label htmlFor="destinationChain">Destination Chain</label>
-            <select 
-              name="destinationChain" 
-              value={destinationChain}
-              onChange={(e) => setDestinationChain(e.target.value)}
-              required={isCCTP}
-            >
-              <option value="">Select Destination Chain</option>
-              {USDC_CONTRACTS.filter(contract => contract.chainId !== currentChainId).map(contract => (
-                <option key={contract.chainId} value={contract.chainId}>
-                  {contract.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
 
         <div className="form-group">
           <label htmlFor="address">Recipient Address</label>
@@ -144,24 +118,22 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="value">
-            Amount {isCCTP ? '(USDC)' : ''}
-          </label>
+          <label htmlFor="value">Amount (USDC)</label>
           <input
             name="value"
-            placeholder={isCCTP ? "0.00" : "0.000000001"}
+            placeholder="0.00"
             type="number"
-            step={isCCTP ? "0.01" : "0.000000001"}
+            step="0.01"
+            min="0"
             required
           />
         </div>
 
         <button disabled={isTransferPending} type="submit" className="send-btn">
-          {isTransferPending ? 'Confirming...' : 'Send'}
+          {isTransferPending ? 'Confirming...' : 'Send USDC'}
         </button>
       </form>
       
-      {hash && <div className="transaction-hash">Transaction Hash: {hash}</div>}
       {isConfirming && <div className="status">Waiting for confirmation...</div>}
       {isConfirmed && <div className="status success">Transaction confirmed.</div>}
       {error && (
