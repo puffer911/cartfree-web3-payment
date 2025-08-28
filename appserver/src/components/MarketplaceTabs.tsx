@@ -186,24 +186,34 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                   <p>No items available for sale.</p>
                 ) : (
                   <div className="items-list">
-                    {saleItems.map((item) => (
-                      <div key={item.id} className="item-card">
-                        <h5>{item.title}</h5>
-                        <p>{item.description}</p>
-                        <div className="item-price">${item.price} USDC</div>
-                        <div className="item-status">Status: {item.status}</div>
-                        <div className="item-seller">
-                          Seller: {item.seller?.wallet_address?.substring(0, 8)}...{item.seller?.wallet_address?.substring(item.seller.wallet_address.length - 6)}
+                    {saleItems.map((item) => {
+                      const isOwnItem = userAddress && item.seller?.wallet_address?.toLowerCase() === userAddress.toLowerCase();
+                      
+                      return (
+                        <div key={item.id} className="item-card">
+                          <div className="item-header">
+                            <h5>{item.title}</h5>
+                            {!isOwnItem && (
+                              <button
+                                className="buy-btn"
+                                onClick={() => handleBuyItem(item)}
+                                disabled={buyLoading === item.id}
+                              >
+                                {buyLoading === item.id ? 'Processing...' : 'Buy Now'}
+                              </button>
+                            )}
+                          </div>
+                          <p>{item.description}</p>
+                          <div className="item-details">
+                            <div className="item-price">${item.price} USDC</div>
+                            <div className="item-status">Status: {item.status}</div>
+                            <div className="item-seller">
+                              Seller: {item.seller?.wallet_address?.substring(0, 8)}...{item.seller?.wallet_address?.substring(item.seller.wallet_address.length - 6)}
+                            </div>
+                          </div>
                         </div>
-                        <button
-                          className="buy-btn"
-                          onClick={() => handleBuyItem(item)}
-                          disabled={buyLoading === item.id}
-                        >
-                          {buyLoading === item.id ? 'Processing...' : 'Buy Now'}
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

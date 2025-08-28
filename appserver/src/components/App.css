@@ -544,6 +544,30 @@ ul li:before {
   border-color: rgba(9, 132, 227, 0.3);
 }
 
+.item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 15px;
+}
+
+.item-header h5 {
+  margin: 0;
+  color: #2d3436;
+  font-size: 16px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.item-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: center;
+}
+
 .item-card h5, .order-card h5 {
   margin: 0 0 8px 0;
   color: #2d3436;
