@@ -1,0 +1,24 @@
+{
+  "name": "cctp-auto-receiver",
+  "version": "1.0.0",
+  "description": "Smart contract for automatic CCTP message receiving on Base Sepolia",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/deploy.js",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network baseSepolia",
+    "verify": "hardhat run scripts/verify.js"
+  },
+  "keywords": ["cctp", "cross-chain", "base", "ethereum", "smart-contract"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@openzeppelin/contracts": "^5.0.0",
+    "hardhat": "^2.19.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1"
+  }
+}
