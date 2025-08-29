@@ -1,6 +1,6 @@
 import { FormEvent, useState, useEffect } from "react";
 import { useWaitForTransactionReceipt, BaseError, useWriteContract, useAccount, useChainId } from "wagmi";
-import { Hex, parseUnits, padHex } from "viem";
+import { Hex, parseUnits, encodePacked } from "viem";
 import { ERC20_ABI, USDC_CONTRACTS, CCTP_ABI, CCTP_CONTRACTS, CHAIN_DOMAINS } from "./config";
 
 interface SendTransactionProps {
@@ -98,7 +98,8 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
           address: currentUSDCContract.address,
           abi: ERC20_ABI,
           functionName: 'approve',
-          args: [cctpContract, parseUnits(value, 6)]
+          args: [cctpContract, parseUnits(value, 6)],
+          value: 0n
         });
         
         console.log('Approval transaction:', approveHash);
@@ -109,7 +110,8 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         // Step 2: Execute CCTP depositForBurnWithCaller
         setTransferStep('burning');
         // Convert address to bytes32 by padding with zeros
-        const mintRecipientBytes32 = padHex(to, { size: 32 });
+        // const mintRecipientBytes32 = padHex(to, { size: 32 });
+        const mintRecipientBytes32 = encodePacked(['address'], [to]);
         
         const burnHash = await writeContractAsync({
           address: cctpContract,
