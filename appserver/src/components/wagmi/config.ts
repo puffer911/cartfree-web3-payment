@@ -38,16 +38,17 @@ export const ERC20_ABI = [
   }
 ] as const;
 
-// CCTP ABI (simplified for depositForBurn function)
+// CCTP ABI (simplified for depositForBurnWithCaller function)
 export const CCTP_ABI = [
   {
     inputs: [
       { internalType: "uint256", name: "amount", type: "uint256" },
       { internalType: "uint32", name: "destinationDomain", type: "uint32" },
       { internalType: "bytes32", name: "mintRecipient", type: "bytes32" },
-      { internalType: "address", name: "burnToken", type: "address" }
+      { internalType: "address", name: "burnToken", type: "address" },
+      { internalType: "address", name: "destinationCaller", type: "address" }
     ],
-    name: "depositForBurn",
+    name: "depositForBurnWithCaller",
     outputs: [{ internalType: "uint64", name: "nonce", type: "uint64" }],
     stateMutability: "nonpayable",
     type: "function"

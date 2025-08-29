@@ -106,7 +106,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         // Wait a moment for the approval to be processed
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Step 2: Execute CCTP depositForBurn
+        // Step 2: Execute CCTP depositForBurnWithCaller
         setTransferStep('burning');
         // Convert address to bytes32 by padding with zeros
         const mintRecipientBytes32 = padHex(to, { size: 32 });
@@ -114,12 +114,13 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         const burnHash = await writeContractAsync({
           address: cctpContract,
           abi: CCTP_ABI,
-          functionName: 'depositForBurn',
+          functionName: 'depositForBurnWithCaller',
           args: [
             parseUnits(value, 6),
             destinationDomain,
             mintRecipientBytes32,
-            currentUSDCContract.address
+            currentUSDCContract.address,
+            "0x9B749C60d211426c9a26149a9405d09cdf7Cd53F" // Hook contract address
           ]
         });
         

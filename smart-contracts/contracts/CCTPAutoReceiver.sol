@@ -59,60 +59,33 @@ contract CCTPAutoReceiver is Ownable, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @notice Automatically process CCTP message when it arrives
+     * @notice Handle CCTP message automatically called by MessageTransmitter
      * @param message The CCTP message bytes
-     * @param attestation The attestation from Circle
+     * @param extraData Additional data (not used in standard CCTP)
      */
-    function processMessage(
+    function handleReceiveMessage(
         bytes calldata message,
-        bytes calldata attestation
+        bytes calldata extraData
     ) external nonReentrant whenNotPaused {
+        // Only MessageTransmitter can call this function
+        require(msg.sender == MESSAGE_TRANSMITTER, "Only MessageTransmitter can call");
+
         // Generate message hash for tracking
-        bytes32 messageHash = keccak256(abi.encodePacked(message, attestation));
+        bytes32 messageHash = keccak256(abi.encodePacked(message, extraData));
         
         // Prevent duplicate processing
         require(!processedMessages[messageHash], "Message already processed");
         
-        // Check if we have enough gas reserve
-        require(address(this).balance >= minGasReserve, "Insufficient gas reserve");
-        
-        // Mark as processed before external call
+        // Mark as processed before external operations
         processedMessages[messageHash] = true;
 
         // Parse message to extract details
         (uint32 sourceDomain, address recipient, uint256 amount) = _parseMessage(message);
         
-        bool success = false;
-        
-        // Attempt to receive the message through MessageTransmitter
-        try IMessageTransmitter(MESSAGE_TRANSMITTER).receiveMessage{gas: gasLimit}(
-            message,
-            attestation
-        ) returns (bool result) {
-            success = result;
-        } catch {
-            // If automatic processing fails, mark as unprocessed so manual retry is possible
-            processedMessages[messageHash] = false;
-        }
+        // Transfer USDC to the final recipient
+        bool success = IERC20(USDC_TOKEN).transfer(recipient, amount);
 
         emit MessageReceived(messageHash, sourceDomain, recipient, amount, success);
-    }
-
-    /**
-     * @notice Batch process multiple messages
-     * @param messages Array of message bytes
-     * @param attestations Array of attestations
-     */
-    function batchProcessMessages(
-        bytes[] calldata messages,
-        bytes[] calldata attestations
-    ) external nonReentrant whenNotPaused {
-        require(messages.length == attestations.length, "Array length mismatch");
-        require(messages.length <= 10, "Too many messages"); // Prevent gas limit issues
-        
-        for (uint256 i = 0; i < messages.length; i++) {
-            this.processMessage(messages[i], attestations[i]);
-        }
     }
 
     /**
@@ -139,14 +112,14 @@ contract CCTPAutoReceiver is Ownable, ReentrancyGuard, Pausable {
     /**
      * @notice Check if a message has been processed
      * @param message The message bytes
-     * @param attestation The attestation
+     * @param extraData Additional data
      * @return processed True if already processed
      */
     function isMessageProcessed(
         bytes calldata message,
-        bytes calldata attestation
+        bytes calldata extraData
     ) external view returns (bool processed) {
-        bytes32 messageHash = keccak256(abi.encodePacked(message, attestation));
+        bytes32 messageHash = keccak256(abi.encodePacked(message, extraData));
         return processedMessages[messageHash];
     }
 
