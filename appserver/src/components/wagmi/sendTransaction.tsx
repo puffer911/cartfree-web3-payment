@@ -11,6 +11,8 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
   const { address } = useAccount();
   const currentChainId = useChainId();
   const [destinationChain, setDestinationChain] = useState(currentChainId.toString());
+  const [txHash, setTxHash] = useState<Hex | undefined>();
+  const [transferStep, setTransferStep] = useState<'idle' | 'approving' | 'burning' | 'completed'>('idle');
   
   const { writeContractAsync, isPending: isContractPending, error } = useWriteContract();
 
@@ -24,8 +26,25 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
-      hash: undefined,
+      hash: txHash,
     });
+
+  // Reset transfer step when transaction is confirmed
+  useEffect(() => {
+    if (isConfirmed && transferStep !== 'idle') {
+      if (transferStep === 'burning') {
+        setTransferStep('completed');
+        if (onTransferComplete && txHash) {
+          onTransferComplete(txHash);
+        }
+      }
+      // Reset after a delay for better UX
+      setTimeout(() => {
+        setTransferStep('idle');
+        setTxHash(undefined);
+      }, 3000);
+    }
+  }, [isConfirmed, transferStep, txHash, onTransferComplete]);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,15 +62,18 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
     // Same chain - direct transfer
     if (destinationChainId === currentChainId) {
       try {
-        await writeContractAsync({
+        setTransferStep('idle');
+        const hash = await writeContractAsync({
           address: currentUSDCContract.address,
           abi: ERC20_ABI,
           functionName: 'transfer',
           args: [to, parseUnits(value, 6)] // USDC has 6 decimals
         });
+        setTxHash(hash);
       } catch (error) {
         console.error('USDC transfer failed:', error);
         alert('USDC transfer failed');
+        setTransferStep('idle');
       }
     } 
     // Different chain - CCTP cross-chain transfer
@@ -70,19 +92,26 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
       }
 
       try {
-        // First approve USDC for CCTP contract to spend tokens
-        await writeContractAsync({
+        // Step 1: Approve USDC for CCTP contract to spend tokens
+        setTransferStep('approving');
+        const approveHash = await writeContractAsync({
           address: currentUSDCContract.address,
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [cctpContract, parseUnits(value, 6)]
         });
+        
+        console.log('Approval transaction:', approveHash);
+        
+        // Wait a moment for the approval to be processed
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Then execute CCTP depositForBurn
+        // Step 2: Execute CCTP depositForBurn
+        setTransferStep('burning');
         // Convert address to bytes32 by padding with zeros
         const mintRecipientBytes32 = padHex(to, { size: 32 });
         
-        await writeContractAsync({
+        const burnHash = await writeContractAsync({
           address: cctpContract,
           abi: CCTP_ABI,
           functionName: 'depositForBurn',
@@ -93,9 +122,14 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
             currentUSDCContract.address
           ]
         });
+        
+        console.log('Burn transaction:', burnHash);
+        setTxHash(burnHash);
+        
       } catch (error) {
         console.error('CCTP transfer failed:', error);
-        alert('CCTP transfer failed');
+        alert(`CCTP transfer failed at ${transferStep} step: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setTransferStep('idle');
       }
     }
   }
@@ -139,10 +173,25 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
           />
         </div>
 
-        <button disabled={isTransferPending} type="submit" className="send-btn">
-          {isTransferPending ? 'Confirming...' : 'Send USDC'}
+        <button disabled={isTransferPending || transferStep !== 'idle'} type="submit" className="send-btn">
+          {transferStep === 'approving' ? 'Approving USDC...' :
+           transferStep === 'burning' ? 'Burning USDC...' :
+           transferStep === 'completed' ? 'Transfer Complete!' :
+           isTransferPending ? 'Confirming...' : 'Send USDC'}
         </button>
       </form>
+      
+      {/* Transfer step indicators */}
+      {transferStep !== 'idle' && (
+        <div className="transfer-steps">
+          <div className={`step ${transferStep === 'approving' ? 'active' : transferStep === 'burning' || transferStep === 'completed' ? 'completed' : ''}`}>
+            Step 1: Approving USDC
+          </div>
+          <div className={`step ${transferStep === 'burning' ? 'active' : transferStep === 'completed' ? 'completed' : ''}`}>
+            Step 2: Cross-chain burn
+          </div>
+        </div>
+      )}
       
       {isConfirming && <div className="status">Waiting for confirmation...</div>}
       {isConfirmed && <div className="status success">Transaction confirmed.</div>}
