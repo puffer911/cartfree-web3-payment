@@ -120,7 +120,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
             destinationDomain,
             mintRecipientBytes32,
             currentUSDCContract.address,
-            "0x9B749C60d211426c9a26149a9405d09cdf7Cd53F" // Hook contract address
+            "0x55f6268587cC1ba10fe1Df056c3a58dB00623Af3" // Hook contract address
           ]
         });
         
