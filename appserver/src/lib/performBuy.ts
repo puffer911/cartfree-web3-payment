@@ -22,6 +22,8 @@ export async function performBuy(params: {
 }) : Promise<{ success: boolean; message: string; txHash?: string }> {
   const { item, buyerAddress, chainId, publicClient, writeContractAsync, onProgress } = params;
 
+  console.log(item, buyerAddress, chainId, publicClient)
+
   if (!item) return { success: false, message: "Item is required" };
   if (!buyerAddress) return { success: false, message: "Buyer wallet not connected" };
   if (!chainId) return { success: false, message: "Chain not detected" };
@@ -203,10 +205,14 @@ export async function performBuy(params: {
     const sellerAddress = item.seller?.wallet_address;
     if (!sellerAddress) return { success: false, message: "Seller wallet not found" };
 
-    const hookData = encodeAbiParameters(
+    const hookDataRaw = encodeAbiParameters(
       [{ type: 'address' }, { type: 'uint256' }],
       [sellerAddress as any, amount]
     );
+    // ensure hookData is 0x-prefixed string (encodeAbiParameters should return hex, but be defensive)
+    const hookData = typeof hookDataRaw === 'string'
+      ? (hookDataRaw.startsWith('0x') ? hookDataRaw : `0x${hookDataRaw}`)
+      : String(hookDataRaw);
 
     // Simulate & send depositForBurnWithHook - require publicClient for simulateContract
     if (!publicClient) return { success: false, message: "RPC client not available for current chain" };
@@ -268,7 +274,18 @@ export async function performBuy(params: {
     console.debug('[performBuy] onProgress', 'finalizing');
     onProgress?.('finalizing');
 
-    // Finalize via backend
+    // Finalize via backend — add defensive logging to help debug stuck finalizing
+    try {
+      console.debug('[performBuy] finalize payload lengths', {
+        destinationChainId: baseChainId,
+        messageLength: typeof message === 'string' ? message.length : null,
+        attestationLength: typeof attestation === 'string' ? attestation.length : null,
+        hookDataLength: typeof hookData === 'string' ? hookData.length : null
+      });
+    } catch (e) {
+      // ignore logging errors
+    }
+
     const finalizeResp = await fetch('/api/cctp/completeTransfer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -279,10 +296,26 @@ export async function performBuy(params: {
         hookData
       })
     });
+
+    // Read response body for better error messages
+    const finalizeText = await finalizeResp.text().catch(() => '');
+
     if (!finalizeResp.ok) {
-      const txt = await finalizeResp.text().catch(() => '');
-      return { success: false, message: `Finalize failed: ${finalizeResp.status} ${txt}` };
+      console.error('[performBuy] finalize failed', {
+        status: finalizeResp.status,
+        body: finalizeText
+      });
+      return { success: false, message: `Finalize failed: ${finalizeResp.status} ${finalizeText}` };
     }
+
+    try {
+      // attempt to parse JSON body if present for richer logging
+      const jsonBody = (() => {
+        try { return JSON.parse(finalizeText); } catch { return null; }
+      })();
+      console.debug('[performBuy] finalize success', { status: finalizeResp.status, body: jsonBody ?? finalizeText });
+    } catch (_) {}
+
     // finalization complete
     console.debug('[performBuy] onProgress', 'completed');
     onProgress?.('completed');

@@ -36,6 +36,19 @@ export async function POST(req: Request) {
   try {
     const { destinationChainId, message, attestation, hookData } = await req.json();
 
+    // debug: log basic presence/lengths so we can inspect client payloads when finalizing stalls
+    try {
+      console.debug('[completeTransfer] incoming', {
+        destinationChainId,
+        messageIsString: typeof message === 'string',
+        messageLength: typeof message === 'string' ? message.length : null,
+        attestationIsString: typeof attestation === 'string',
+        attestationLength: typeof attestation === 'string' ? attestation.length : null,
+        hookDataIsString: typeof hookData === 'string',
+        hookDataLength: typeof hookData === 'string' ? hookData.length : null,
+      });
+    } catch (_) {}
+
     if (!destinationChainId || typeof destinationChainId !== 'number') {
       return NextResponse.json({ error: 'destinationChainId (number) required' }, { status: 400 });
     }
@@ -102,6 +115,13 @@ export async function POST(req: Request) {
       nonce: currentNonce
     });
     const receiveReceipt = await publicClient.waitForTransactionReceipt({ hash: receiveHash });
+    try {
+      console.debug('[completeTransfer] receiveReceipt', {
+        hash: receiveHash,
+        status: receiveReceipt?.status,
+        blockNumber: receiveReceipt?.blockNumber
+      });
+    } catch (_) {}
 
     // Increment nonce for the next transaction (we'll use it first to top-up executor if needed)
     currentNonce = currentNonce + 1;
@@ -117,6 +137,12 @@ export async function POST(req: Request) {
       // decodeAbiParameters returns an array-like result
       decodedRecipient = decoded?.[0] ?? null;
       decodedAmount = typeof decoded?.[1] === 'bigint' ? decoded[1] : (decoded?.[1] ? BigInt(decoded[1].toString()) : null);
+      try {
+        console.debug('[completeTransfer] decoded hookData', {
+          decodedRecipient,
+          decodedAmount: decodedAmount?.toString?.() ?? null
+        });
+      } catch (_) {}
     } catch (decodeErr) {
       // If we can't decode, continue — executeHook may still revert but we surface a clearer message below.
       console.warn('Failed to decode hookData:', decodeErr);
@@ -131,7 +157,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'USDC not configured for destination chain' }, { status: 500 });
       }
 
-      // Helper to read executor USDC balance
+      // Helper to read executor USDC balance (with debug)
       const readExecutorBalance = async () => {
         try {
           const bal: any = await publicClient.readContract({
@@ -141,7 +167,11 @@ export async function POST(req: Request) {
             args: [hookExecutorOnDest as Hex],
           });
           // bal may be bigint already
-          return typeof bal === 'bigint' ? bal : BigInt(bal?.toString?.() ?? '0');
+          const numericBal = typeof bal === 'bigint' ? bal : BigInt(bal?.toString?.() ?? '0');
+          try {
+            console.debug('[completeTransfer] executor balance', { executor: hookExecutorOnDest, balance: numericBal.toString() });
+          } catch (_) {}
+          return numericBal;
         } catch (readErr) {
           console.warn('Failed to read executor USDC balance:', readErr);
           return 0n;
@@ -155,6 +185,9 @@ export async function POST(req: Request) {
       let executorBalance = await readExecutorBalance();
 
       while (executorBalance < decodedAmount && waited < maxWait) {
+        try {
+          console.debug('[completeTransfer] waiting for executor funds', { waited, executorBalance: executorBalance.toString(), needed: decodedAmount.toString() });
+        } catch (_) {}
         await new Promise((res) => setTimeout(res, pollInterval));
         waited += pollInterval;
         executorBalance = await readExecutorBalance();
@@ -190,17 +223,56 @@ export async function POST(req: Request) {
       }
     }
 
-    // Step 5: execute hook on destination
-    const execHash = await walletClient.writeContract({
-      address: hookExecutorOnDest,
-      abi: HOOK_EXECUTOR_ABI as any,
-      functionName: 'executeHook',
-      args: [hookData as Hex],
-      chain,
-      account,
-      nonce: currentNonce
-    });
-    const execReceipt = await publicClient.waitForTransactionReceipt({ hash: execHash });
+    // Step 5: execute hook on destination (with logging and error handling)
+    let execHash: string | undefined;
+    let execReceipt: any;
+    try {
+      console.debug('[completeTransfer] executing hook', { hookExecutorOnDest, nonce: currentNonce });
+      execHash = await walletClient.writeContract({
+        address: hookExecutorOnDest,
+        abi: HOOK_EXECUTOR_ABI as any,
+        functionName: 'executeHook',
+        args: [hookData as Hex],
+        chain,
+        account,
+        nonce: currentNonce
+      });
+      console.debug('[completeTransfer] executeHook tx sent', { execHash });
+    } catch (execSendErr: any) {
+      console.error('[completeTransfer] executeHook writeContract error', execSendErr);
+      return NextResponse.json({ error: 'executeHook send failed', message: execSendErr?.message || String(execSendErr) }, { status: 500 });
+    }
+
+    try {
+      execReceipt = await publicClient.waitForTransactionReceipt({ hash: execHash as Hex });
+      console.debug('[completeTransfer] execReceipt', {
+        hash: execHash,
+        status: execReceipt?.status,
+        blockNumber: execReceipt?.blockNumber
+      });
+    } catch (waitExecErr: any) {
+      console.error('[completeTransfer] waiting for executeHook receipt failed', waitExecErr);
+      return NextResponse.json({ error: 'executeHook receipt failed', message: waitExecErr?.message || String(waitExecErr) }, { status: 500 });
+    }
+
+    // Read executor USDC balance for debug (best-effort)
+    let executorBalance: string | null = null;
+    try {
+      const usdcContractForChain = USDC_CONTRACTS.find((c: any) => c.chainId === destinationChainId);
+      if (usdcContractForChain) {
+        const balRaw: any = await publicClient.readContract({
+          address: usdcContractForChain.address as Hex,
+          abi: ERC20_ABI as any,
+          functionName: 'balanceOf',
+          args: [hookExecutorOnDest as Hex],
+        });
+        const balBig = typeof balRaw === 'bigint' ? balRaw : BigInt(balRaw?.toString?.() ?? '0');
+        executorBalance = balBig.toString();
+        try { console.debug('[completeTransfer] executor balance before respond', { executor: hookExecutorOnDest, executorBalance }); } catch (_) {}
+      }
+    } catch (balErr: any) {
+      console.warn('[completeTransfer] failed to read executor balance for response', balErr);
+    }
 
     return NextResponse.json(
       {
@@ -209,6 +281,7 @@ export async function POST(req: Request) {
         receiveStatus: receiveReceipt.status,
         execHash,
         execStatus: execReceipt.status,
+        executorBalance
       },
       { status: 200 }
     );
