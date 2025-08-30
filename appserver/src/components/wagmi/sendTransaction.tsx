@@ -21,6 +21,8 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
   const { address } = useAccount();
   const currentChainId = useChainId();
   const publicClient = usePublicClient();
+  // Public client pinned to destination (Base Sepolia 84532) for destination reads/receipts
+  const destPublicClient = usePublicClient({ chainId: 84532 });
   const { switchChainAsync } = useSwitchChain();
   // Hardcode destination to Base (chainId 84532)
   const destinationChain = "84532";
@@ -105,6 +107,13 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
       const hookExecutorOnDest = HOOK_EXECUTOR_CONTRACTS[destinationChainId as keyof typeof HOOK_EXECUTOR_CONTRACTS];
       if (!hookExecutorOnDest) {
         alert('Hook executor not configured for destination chain');
+        return;
+      }
+
+      // Ensure we know the USDC address on the destination chain (for optional balance checks)
+      const destUSDCContract = USDC_CONTRACTS.find(c => c.chainId === destinationChainId);
+      if (!destUSDCContract) {
+        alert('USDC not configured on destination chain');
         return;
       }
 
@@ -248,49 +257,33 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
 
         const { message, attestation } = await pollForAttestation(burnHash);
 
-        // Step 4: Deliver message on destination chain
+        // Step 4 & 5: Delegate finalize + hook execution to backend relayer
         setTransferStep('finalizing');
 
-        // Ensure wallet is on destination chain before sending the destination tx
         try {
-          if (switchChainAsync) {
-            await switchChainAsync({ chainId: destinationChainId });
+          const resp = await fetch('/api/cctp/completeTransfer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              destinationChainId,
+              message,
+              attestation,
+              hookData
+            })
+          });
+          if (!resp.ok) {
+            const text = await resp.text().catch(() => '');
+            throw new Error(`Backend finalize failed (${resp.status}): ${text}`);
           }
+          const data = await resp.json();
+          console.log('Backend finalize:', data);
+
+          setTransferStep('executing');
+          if (data?.execHash) setTxHash(data.execHash);
+          setTransferStep('completed');
         } catch (e) {
-          throw new Error(`Please switch your wallet to the destination chain (chainId ${destinationChainId}) to finalize: ${e instanceof Error ? e.message : String(e)}`);
+          throw new Error(`Backend finalize error: ${e instanceof Error ? e.message : String(e)}`);
         }
-
-        const mtOnDestination = MESSAGE_TRANSMITTER_CONTRACTS[destinationChainId as keyof typeof MESSAGE_TRANSMITTER_CONTRACTS];
-
-        if (!mtOnDestination) {
-          throw new Error('MessageTransmitter not configured for destination chain');
-        }
-
-        const receiveHash = await writeContractAsync({
-          address: mtOnDestination,
-          abi: MESSAGE_TRANSMITTER_ABI,
-          functionName: 'receiveMessage',
-          args: [message, attestation],
-          // Ensure transaction is sent on destination chain (wallet will prompt to switch if needed)
-          chainId: destinationChainId
-        });
-
-        console.log('Receive message transaction:', receiveHash);
-        setTxHash(receiveHash);
-
-        // Step 5: Execute hook on destination to forward funds to final recipient
-        setTransferStep('executing');
-
-        const execHash = await writeContractAsync({
-          address: hookExecutorOnDest,
-          abi: HOOK_EXECUTOR_ABI,
-          functionName: 'executeHook',
-          args: [hookData],
-          chainId: destinationChainId
-        });
-
-        console.log('Execute hook transaction:', execHash);
-        setTxHash(execHash);
         
       } catch (error) {
         console.error('CCTP transfer failed:', error);
