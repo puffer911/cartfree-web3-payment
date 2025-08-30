@@ -15,7 +15,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 
 export const metadata = {
-  title: "Cartfree - Convert Browsers into Buyers, Instantly.",
+  title: "Cartfree - Connect, Pay, Done.",
   description: "Our seamless payment solution transforms hesitant browsers into committed buyers with a single click. By eliminating friction and providing an intuitive, lightning-fast checkout experience, we turn your digital storefront into a conversion powerhouse.",
 };
 

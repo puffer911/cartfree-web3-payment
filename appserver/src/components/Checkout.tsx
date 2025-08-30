@@ -264,7 +264,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
             <button
               onClick={createListing}
               className="create-listing-btn"

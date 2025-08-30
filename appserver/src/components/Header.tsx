@@ -38,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
     <div className="dashboard-header">
       <Link href="/" className="brand-title" style={{ textDecoration: 'none' }}>
 <span className="card-icon"><SiWebmoney /></span>
-        <span className="brand-title-text">Cartfree - Worry free checkout</span>
+        <span className="brand-title-text">Cartfree - Connect, Pay, Done.</span>
       </Link>
       
       {isConnected ? (
