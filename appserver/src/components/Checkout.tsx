@@ -22,8 +22,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
   const [message, setMessage] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  // Collapsible state: default collapsed
-  const [collapsed, setCollapsed] = useState(true);
+  // Minimized (compact) state: show a small preview of the form by default
+  const [minimized, setMinimized] = useState(true);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -108,8 +108,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
       });
       setImagePreview(null);
 
-      // Optionally collapse the form after successful creation
-      setCollapsed(true);
+      // Optionally minimize the form after successful creation
+      setMinimized(true);
     } catch (error) {
       console.error('Error creating listing:', error);
       setMessage(error instanceof Error ? error.message : 'Failed to create listing');
@@ -141,28 +141,66 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
           <span className="card-icon">💳</span>
           Create Listing
         </h3>
-        <button
-          type="button"
-          onClick={() => setCollapsed(prev => !prev)}
-          className="sell-now-btn"
-          aria-expanded={!collapsed}
-          style={{
-            marginLeft: 'auto',
-            backgroundColor: '#10B981',
-            color: '#ffffff',
-            border: 'none',
-            padding: '6px 12px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 600
-          }}
-        >
-          {collapsed ? 'Sell Now' : 'Hide Form'}
-        </button>
       </div>
       
-      {/* Collapsible form: hidden when collapsed */}
-      {!collapsed && (
+      {/* Compact/minimized preview OR full form */}
+      {minimized ? (
+        <div className="checkout-form compact" style={{ marginTop: '12px' }}>
+          <div className="form-group" style={{ marginBottom: 8 }}>
+            <label htmlFor="title">Product Title *</label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              placeholder="Enter product title"
+              required
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 8 }}>
+            <label htmlFor="price">Price *</label>
+            <input
+              type="number"
+              id="price"
+              name="price"
+              value={formData.price}
+              onChange={handleInputChange}
+              placeholder="0.00"
+              step="0.01"
+              min="0"
+              required
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, justifyContent: 'space-between' }}>
+            <button
+              type="button"
+              onClick={() => setMinimized(false)}
+              className="show-more-btn"
+              style={{
+                background: '#ffffff',
+                border: '1px solid #10B981',
+                color: '#10B981',
+                padding: '8px 14px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 700
+              }}
+            >
+              Show more
+            </button>
+            <div style={{ color: '#6b7280', fontSize: 13 }}>Click "Show more" to enter full details</div>
+          </div>
+
+          {message && (
+            <div className={`message ${message.includes('success') ? 'success' : 'error'}`} style={{ marginTop: '10px' }}>
+              {message}
+            </div>
+          )}
+        </div>
+      ) : (
         <div className="checkout-form" style={{ marginTop: '12px' }}>
           <div className="form-group">
             <label htmlFor="title">Product Title *</label>
@@ -225,13 +263,30 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
             </div>
           )}
 
-          <button
-            onClick={createListing}
-            className="create-listing-btn"
-            disabled={loading}
-          >
-            {loading ? 'Creating...' : 'Create Listing'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={createListing}
+              className="create-listing-btn"
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : 'Create Listing'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMinimized(true)}
+              className="hide-form-btn"
+              style={{
+                background: 'transparent',
+                border: '1px solid #ddd',
+                padding: '6px 10px',
+                borderRadius: 6,
+                cursor: 'pointer'
+              }}
+            >
+              Hide
+            </button>
+          </div>
 
           {message && (
             <div className={`message ${message.includes('success') ? 'success' : 'error'}`} style={{ marginTop: '10px' }}>
