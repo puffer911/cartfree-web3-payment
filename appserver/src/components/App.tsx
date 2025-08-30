@@ -1,7 +1,7 @@
 import { useAccount, useSignMessage } from "wagmi";
 import { MarketplaceTabs } from "./MarketplaceTabs";
 import { DashboardLayout } from "./DashboardLayout";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useWeb3AuthUser } from "@web3auth/modal/react";
 
 function App() {
@@ -38,7 +38,7 @@ function App() {
     return newNonce;
   };
 
-  const handleSignNonce = () => {
+  const handleSignNonce = useCallback(() => {
     if (!address) {
       return;
     }
@@ -47,7 +47,7 @@ function App() {
     const message = `Sign in to Cartfree: ${currentNonce}`;
     
     signMessage({ message });
-  };
+  }, [address, nonce, signMessage]);
 
   // Handle signature response and send to backend
   useEffect(() => {
