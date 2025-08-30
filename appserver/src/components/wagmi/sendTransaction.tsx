@@ -1,4 +1,4 @@
-import { FormEvent, useState, useEffect } from "react";
+import { FormEvent, useState, useEffect, useRef } from "react";
 import { useWaitForTransactionReceipt, BaseError, useWriteContract, useAccount, useChainId, usePublicClient, useSwitchChain } from "wagmi";
 import { Hex, parseUnits, encodeAbiParameters } from "viem";
 import {
@@ -31,6 +31,10 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
     'idle' | 'approving' | 'burning' | 'polling' | 'finalizing' | 'executing' | 'completed'
   >('idle');
   
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
   const { writeContractAsync, isPending: isContractPending, error } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
@@ -58,6 +62,8 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setIsProcessing(true);
+    setIsCompleted(false);
     const formData = new FormData(e.target as HTMLFormElement);
     const to = formData.get('address') as Hex;
     const value = formData.get('value') as string;
@@ -278,9 +284,16 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
           const data = await resp.json();
           console.log('Backend finalize:', data);
 
-          setTransferStep('executing');
-          if (data?.execHash) setTxHash(data.execHash);
+          // mark completed, persist UI state, stop processing
           setTransferStep('completed');
+          setIsCompleted(true);
+          setIsProcessing(false);
+          if (data?.execHash) setTxHash(data.execHash);
+          // clear amount input
+          if (formRef?.current) {
+            const input = formRef.current.querySelector('input[name="value"]') as HTMLInputElement | null;
+            if (input) input.value = '';
+          }
         } catch (e) {
           throw new Error(`Backend finalize error: ${e instanceof Error ? e.message : String(e)}`);
         }
@@ -288,6 +301,9 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
       } catch (error) {
         console.error('CCTP transfer failed:', error);
         alert(`CCTP transfer failed at ${transferStep} step: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        setIsProcessing(false);
+        setIsCompleted(false);
+        setTxHash(undefined);
         setTransferStep('idle');
       }
     }
@@ -321,7 +337,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
           />
         </div>
 
-        <button disabled={isTransferPending || transferStep !== 'idle'} type="submit" className="send-btn">
+        <button disabled={isTransferPending || isProcessing} type="submit" className="send-btn">
           {transferStep === 'approving' ? 'Approving USDC...' :
            transferStep === 'burning' ? 'Burning USDC...' :
            transferStep === 'completed' ? 'Transfer Complete!' :
@@ -350,7 +366,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         </div>
       )}
       
-      {isConfirming && <div className="status">Waiting for confirmation...</div>}
+      {isConfirming && !isCompleted && <div className="status">Waiting for confirmation...</div>}
       {transferStep === 'completed' && <div className="status success">Transaction completed.</div>}
       {error && (
         <div className="error">Error: {(error as BaseError).shortMessage || error.message}</div>
