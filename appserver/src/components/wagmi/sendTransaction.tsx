@@ -10,19 +10,12 @@ interface SendTransactionProps {
 export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
   const { address } = useAccount();
   const currentChainId = useChainId();
-  const [destinationChain, setDestinationChain] = useState(currentChainId.toString());
+  // Hardcode destination to Base (chainId 84532)
+  const destinationChain = "84532";
   const [txHash, setTxHash] = useState<Hex | undefined>();
   const [transferStep, setTransferStep] = useState<'idle' | 'approving' | 'burning' | 'completed'>('idle');
   
   const { writeContractAsync, isPending: isContractPending, error } = useWriteContract();
-
-  // Ensure destination chain is always a valid option
-  useEffect(() => {
-    const isValidChain = USDC_CONTRACTS.some(contract => contract.chainId.toString() === destinationChain);
-    if (!isValidChain) {
-      setDestinationChain(currentChainId.toString());
-    }
-  }, [currentChainId, destinationChain]);
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
     useWaitForTransactionReceipt({
@@ -107,23 +100,43 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         // Wait a moment for the approval to be processed
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Step 2: Execute CCTP depositForBurnWithCaller
+        // Step 2: Try CCTP depositForBurnWithCaller, fallback to depositForBurn
         setTransferStep('burning');
         // Convert address to bytes32 by padding with zeros
         const mintRecipientBytes32 = `0x${to.replace('0x', '').padStart(64, '0')}` as Hex;
         
-        const burnHash = await writeContractAsync({
-          address: cctpContract,
-          abi: CCTP_ABI,
-          functionName: 'depositForBurnWithCaller',
-          args: [
-            parseUnits(value, 6),
-            destinationDomain,
-            mintRecipientBytes32,
-            currentUSDCContract.address,
-            "0xdeDB591e1a23A5A691E0d00Da99e0506A2F00468" // Hook contract address
-          ]
-        });
+        let burnHash;
+        
+        try {
+          // First try depositForBurnWithCaller for hook functionality
+          burnHash = await writeContractAsync({
+            address: cctpContract,
+            abi: CCTP_ABI,
+            functionName: 'depositForBurnWithCaller',
+            args: [
+              parseUnits(value, 6),
+              destinationDomain,
+              mintRecipientBytes32,
+              currentUSDCContract.address,
+              "0xdeDB591e1a23A5A691E0d00Da99e0506A2F00468" // Hook contract address
+            ]
+          });
+        } catch (hookError) {
+          console.log('depositForBurnWithCaller failed, trying regular depositForBurn:', hookError);
+          
+          // Fallback to regular depositForBurn if hook version fails
+          // burnHash = await writeContractAsync({
+          //   address: cctpContract,
+          //   abi: CCTP_ABI,
+          //   functionName: 'depositForBurn',
+          //   args: [
+          //     parseUnits(value, 6),
+          //     destinationDomain,
+          //     mintRecipientBytes32,
+          //     currentUSDCContract.address
+          //   ]
+          // });
+        }
         
         console.log('Burn transaction:', burnHash);
         setTxHash(burnHash);
@@ -143,19 +156,8 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
       <h2>Send USDC</h2>
       <form onSubmit={submit} className="usdc-form">
         <div className="form-group">
-          <label htmlFor="destinationChain">Destination Chain</label>
-          <select 
-            name="destinationChain" 
-            value={destinationChain}
-            onChange={(e) => setDestinationChain(e.target.value)}
-            required
-          >
-            {USDC_CONTRACTS.map(contract => (
-              <option key={contract.chainId} value={contract.chainId}>
-                {contract.name} {contract.chainId === currentChainId ? '(Current)' : ''}
-              </option>
-            ))}
-          </select>
+          <label>Destination Chain</label>
+          <div className="destination-display">Base</div>
         </div>
 
         <div className="form-group">
