@@ -6,10 +6,11 @@ const supabase = createSupabaseServerClient();
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: any
 ) {
+const { params } = context;
   try {
-    const { id } = await params
+    const { id } = params;
 
     if (!id) {
       return NextResponse.json(
