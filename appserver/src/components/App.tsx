@@ -99,7 +99,7 @@ function App() {
     } else {
       setIsConnected(false);
     }
-  }, [address, userInfo]);
+  }, [address, userInfo, handleSignNonce]);
 
   return (
     <DashboardLayout>

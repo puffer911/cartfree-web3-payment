@@ -99,7 +99,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
 
   useEffect(() => {
     fetchData(activeTab);
-  }, [activeTab, userAddress]);
+  }, [activeTab, userAddress, fetchData]);
 
   const handleTabChange = (tab: 'sale' | 'listings' | 'selling' | 'buying') => {
     setActiveTab(tab);

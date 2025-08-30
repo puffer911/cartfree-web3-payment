@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import BuyButton from './BuyButton';
 
 interface Item {
@@ -77,7 +78,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
       </div>
       {item.image_url && (
         <div className="item-image-right">
-          <img src={item.image_url} alt={item.title} />
+          <Image src={item.image_url} alt={item.title} width={150} height={150} />
         </div>
       )}
     </div>

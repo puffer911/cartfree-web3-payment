@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 interface CheckoutProps {
   isConnected: boolean;
@@ -256,7 +257,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
 
           {imagePreview && (
             <div className="image-preview">
-              <img src={imagePreview} alt="Preview" />
+              <Image src={imagePreview} alt="Preview" width={100} height={100} />
               <button type="button" onClick={removeImage} className="remove-image-btn">
                 Remove Image
               </button>
