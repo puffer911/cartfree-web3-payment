@@ -84,6 +84,12 @@ export async function POST(req: Request) {
     });
 
     // Step 4: finalize on destination (receiveMessage)
+    // Ensure we use the correct, up-to-date nonce for the relayer account to avoid nonce-too-low errors.
+    const relayerAddress = account.address;
+    // getTransactionCount returns a number; keep nonce as number for walletClient.writeContract
+    let currentNonce = await publicClient.getTransactionCount({ address: relayerAddress });
+
+    // Use nonce for receiveMessage
     const receiveHash = await walletClient.writeContract({
       address: mtOnDestination,
       abi: MESSAGE_TRANSMITTER_ABI as any,
@@ -91,8 +97,12 @@ export async function POST(req: Request) {
       args: [message as Hex, attestation as Hex],
       chain,
       account,
+      nonce: currentNonce
     });
     const receiveReceipt = await publicClient.waitForTransactionReceipt({ hash: receiveHash });
+
+    // Increment nonce for the next transaction (executeHook)
+    currentNonce = currentNonce + 1;
 
     // Step 5: execute hook on destination
     const execHash = await walletClient.writeContract({
@@ -102,6 +112,7 @@ export async function POST(req: Request) {
       args: [hookData as Hex],
       chain,
       account,
+      nonce: currentNonce
     });
     const execReceipt = await publicClient.waitForTransactionReceipt({ hash: execHash });
 

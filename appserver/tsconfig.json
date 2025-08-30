@@ -17,6 +17,7 @@
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "noEmit": true,
     "jsx": "preserve",
     "incremental": true,
@@ -32,8 +33,7 @@
   },
   "include": [
     "src/app",
-    "src/components",
-    ".next/types/**/*.ts"
+    "src/components"
   ],
   "exclude": [
     "node_modules"

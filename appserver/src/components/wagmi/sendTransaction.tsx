@@ -240,8 +240,8 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
               console.log("respon not oke")
               throw new Error(`Iris API error ${resp.status}`);
             }
-            console.log("respon oke")
             const data = await resp.json();
+            console.log(data?.messages?.[0])
             // Require Iris to return hex-encoded values. Ignore PENDING/non-hex placeholders.
             const m = data?.messages?.[0];
             if (
