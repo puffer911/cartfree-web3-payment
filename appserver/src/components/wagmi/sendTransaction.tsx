@@ -38,14 +38,15 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
 
   // Reset transfer step when transaction is confirmed
   useEffect(() => {
-    if (isConfirmed && transferStep !== 'idle') {
-      if (transferStep === 'finalizing' || transferStep === 'executing') {
-        setTransferStep('completed');
-        if (onTransferComplete && txHash) {
-          onTransferComplete(txHash);
-        }
+    if (!isConfirmed) return;
+
+    // Only mark completed and reset after destination steps succeed.
+    if (transferStep === 'finalizing' || transferStep === 'executing') {
+      setTransferStep('completed');
+      if (onTransferComplete && txHash) {
+        onTransferComplete(txHash);
       }
-      // Reset after a delay for better UX
+      // Reset after a delay for better UX (post-completion only)
       setTimeout(() => {
         setTransferStep('idle');
         setTxHash(undefined);
@@ -146,25 +147,36 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         const mintRecipientBytes32 = toBytes32(hookExecutorOnDest);
         const destinationCallerBytes32 = ('0x' + '0'.repeat(64)) as Hex;
 
-        // Compute a sane maxFee: try on-chain min fee with +10% buffer; fallback to ~1 bps if not supported
+        // Compute Fast Transfer fee from Circle endpoint (basis points -> amount)
         let maxFee: bigint;
         try {
-          const minFeeAmount = await publicClient.readContract({
-            address: tokenMessenger,
-            abi: TOKEN_MESSENGER_ABI,
-            functionName: "getMinFeeAmount",
-            args: [amount]
-          });
-          // buffer by +10%
-          maxFee = (minFeeAmount * 110n) / 100n;
+          const sourceDomain = CHAIN_DOMAINS[currentChainId as keyof typeof CHAIN_DOMAINS];
+          const feesUrl = `https://iris-api-sandbox.circle.com/v2/burn/USDC/fees?sourceDomain=${sourceDomain}&destinationDomain=${destinationDomain}`;
+          const feeResp = await fetch(feesUrl);
+          if (!feeResp.ok) throw new Error(`Fees API error ${feeResp.status}`);
+          const feeJson = await feeResp.json() as any;
+
+          // Try to detect fast-transfer fee bps from response shape
+          let feeBps: number | undefined =
+            typeof feeJson?.fast?.feeBps === 'number' ? feeJson.fast.feeBps :
+            typeof feeJson?.fastFeeBps === 'number' ? feeJson.fastFeeBps :
+            typeof feeJson?.fee === 'number' ? feeJson.fee :
+            undefined;
+
+          // Fallback to 1 bps if not present
+          if (feeBps === undefined) feeBps = 1;
+
+          // Convert bps to amount units
+          maxFee = (amount * BigInt(Math.max(1, Math.floor(feeBps)))) / 10000n;
+          if (maxFee === 0n) maxFee = 1n;
         } catch {
-          // fallback: 1 bps + 1 wei of USDC units
+          // Final fallback: 1 bps + 1 wei of USDC units
           maxFee = amount / 10000n + 1n;
           if (maxFee === 0n) maxFee = 1n;
         }
 
-        // Standard Transfer (fully finalized)
-        const minFinalityThreshold = 2000;
+        // Fast Transfer (soft finality)
+        const minFinalityThreshold = 1000;
 
         // ABI-encode hookData: (final recipient, amount)
         const hookData = encodeAbiParameters(
@@ -205,10 +217,15 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
             const resp = await fetch(apiUrl);
             if (resp.status === 404) {
               // Not indexed yet — keep polling
+              console.log("wait")
               await new Promise(res => setTimeout(res, 3000));
               continue;
             }
-            if (!resp.ok) throw new Error(`Iris API error ${resp.status}`);
+            if (!resp.ok) {
+              console.log("respon not oke")
+              throw new Error(`Iris API error ${resp.status}`);
+            }
+            console.log("respon oke")
             const data = await resp.json();
             // Require Iris to return hex-encoded values. Ignore PENDING/non-hex placeholders.
             const m = data?.messages?.[0];
@@ -221,8 +238,10 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
               m.attestation.length > 2 &&
               m.message.length > 2
             ) {
+              console.log("forced return")
               return { message: m.message as Hex, attestation: m.attestation as Hex };
             }
+            console.log("promise")
             await new Promise(res => setTimeout(res, 3000));
           }
         };
@@ -339,7 +358,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
       )}
       
       {isConfirming && <div className="status">Waiting for confirmation...</div>}
-      {isConfirmed && <div className="status success">Transaction confirmed.</div>}
+      {transferStep === 'completed' && <div className="status success">Transaction completed.</div>}
       {error && (
         <div className="error">Error: {(error as BaseError).shortMessage || error.message}</div>
       )}
