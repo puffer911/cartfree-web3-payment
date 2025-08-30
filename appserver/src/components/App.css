@@ -633,7 +633,7 @@ ul li:before {
   font-weight: 600;
 }
 
-.item-card p, .order-card p {
+.item-card p, .order-card p, .order-card .order-explorer {
   margin: 4px 0;
   color: rgba(45, 52, 54, 0.7);
   font-size: 14px;
@@ -643,7 +643,7 @@ ul li:before {
 .item-price, .order-status, .order-chain {
   font-weight: 600;
   color: #0984e3;
-  margin-top: 8px;
+  margin: 8px 8px 8px 0;
   padding: 4px 8px;
   background: rgba(9, 132, 227, 0.1);
   border-radius: 6px;
