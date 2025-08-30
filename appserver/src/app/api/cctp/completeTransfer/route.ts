@@ -1,34 +1,25 @@
 import { NextResponse } from 'next/server';
-import { createPublicClient, createWalletClient, http, Hex, decodeAbiParameters } from 'viem';
+import { createPublicClient, createWalletClient, http, Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { baseSepolia, arbitrumSepolia, sepolia } from 'viem/chains';
 
-// Reuse ABIs and address maps from FE config
 import {
   MESSAGE_TRANSMITTER_ABI,
   MESSAGE_TRANSMITTER_CONTRACTS,
   HOOK_EXECUTOR_ABI,
   HOOK_EXECUTOR_CONTRACTS,
-  ERC20_ABI,
-  USDC_CONTRACTS
 } from '../../../../components/wagmi/config';
 
-// Map chainId to viem chain objects (extend as needed)
 const chainById: Record<number, any> = {
   84532: baseSepolia,
   421614: arbitrumSepolia,
   11155111: sepolia,
 };
 
-// Resolve RPC URL for a chain (prefer per-chain, else generic)
 function getRpcUrl(chainId: number): string {
-  // Allow per-chain override if you like (e.g., RELAYER_RPC_URL_84532)
   const perChain = process.env[`RELAYER_RPC_URL_${chainId}` as keyof NodeJS.ProcessEnv] as string | undefined;
   return (
-    perChain ||
-    process.env.RELAYER_RPC_URL ||
-    process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || // fallback to FE env if present
-    'https://sepolia.base.org'
+    perChain!
   );
 }
 
@@ -36,30 +27,8 @@ export async function POST(req: Request) {
   try {
     const { destinationChainId, message, attestation, hookData } = await req.json();
 
-    // debug: log basic presence/lengths so we can inspect client payloads when finalizing stalls
-    try {
-      console.debug('[completeTransfer] incoming', {
-        destinationChainId,
-        messageIsString: typeof message === 'string',
-        messageLength: typeof message === 'string' ? message.length : null,
-        attestationIsString: typeof attestation === 'string',
-        attestationLength: typeof attestation === 'string' ? attestation.length : null,
-        hookDataIsString: typeof hookData === 'string',
-        hookDataLength: typeof hookData === 'string' ? hookData.length : null,
-      });
-    } catch (_) {}
-
-    if (!destinationChainId || typeof destinationChainId !== 'number') {
-      return NextResponse.json({ error: 'destinationChainId (number) required' }, { status: 400 });
-    }
-    if (!message || typeof message !== 'string' || !message.startsWith('0x')) {
-      return NextResponse.json({ error: 'message (0x hex) required' }, { status: 400 });
-    }
-    if (!attestation || typeof attestation !== 'string' || !attestation.startsWith('0x')) {
-      return NextResponse.json({ error: 'attestation (0x hex) required' }, { status: 400 });
-    }
-    if (!hookData || typeof hookData !== 'string' || !hookData.startsWith('0x')) {
-      return NextResponse.json({ error: 'hookData (0x hex) required' }, { status: 400 });
+    if (!destinationChainId || typeof destinationChainId !== 'number' || !message || !attestation || !hookData) {
+      return NextResponse.json({ error: 'destinationChainId, message, attestation, and hookData are required' }, { status: 400 });
     }
 
     const chain = chainById[destinationChainId];
@@ -67,212 +36,45 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Unsupported destination chainId ${destinationChainId}` }, { status: 400 });
     }
 
-    const mtOnDestination = MESSAGE_TRANSMITTER_CONTRACTS[
-      destinationChainId as keyof typeof MESSAGE_TRANSMITTER_CONTRACTS
-    ] as Hex | undefined;
-    const hookExecutorOnDest = HOOK_EXECUTOR_CONTRACTS[
-      destinationChainId as keyof typeof HOOK_EXECUTOR_CONTRACTS
-    ] as Hex | undefined;
+    const mtOnDestination = MESSAGE_TRANSMITTER_CONTRACTS[destinationChainId as keyof typeof MESSAGE_TRANSMITTER_CONTRACTS] as Hex | undefined;
+    const hookExecutorOnDest = HOOK_EXECUTOR_CONTRACTS[destinationChainId as keyof typeof HOOK_EXECUTOR_CONTRACTS] as Hex | undefined;
 
-    if (!mtOnDestination) {
-      return NextResponse.json({ error: 'MessageTransmitter not configured for destination chain' }, { status: 400 });
-    }
-    if (!hookExecutorOnDest) {
-      return NextResponse.json({ error: 'Hook executor not configured for destination chain' }, { status: 400 });
+    if (!mtOnDestination || !hookExecutorOnDest) {
+      return NextResponse.json({ error: 'Contract addresses not configured for destination chain' }, { status: 400 });
     }
 
     const pk = process.env.RELAYER_PRIVATE_KEY || process.env.RELAYER_KEY;
     if (!pk) {
       return NextResponse.json({ error: 'RELAYER_PRIVATE_KEY not configured' }, { status: 500 });
     }
-    const rpcUrl = getRpcUrl(destinationChainId);
 
     const account = privateKeyToAccount(pk.startsWith('0x') ? (pk as Hex) : (`0x${pk}` as Hex));
-    const publicClient = createPublicClient({
-      chain,
-      transport: http(rpcUrl),
-    });
-    const walletClient = createWalletClient({
-      account,
-      chain,
-      transport: http(rpcUrl),
-    });
+    const publicClient = createPublicClient({ chain, transport: http(getRpcUrl(destinationChainId)) });
+    const walletClient = createWalletClient({ account, chain, transport: http(getRpcUrl(destinationChainId)) });
 
-    // Step 4: finalize on destination (receiveMessage)
-    // Ensure we use the correct, up-to-date nonce for the relayer account to avoid nonce-too-low errors.
-    const relayerAddress = account.address;
-    // getTransactionCount returns a number; keep nonce as number for walletClient.writeContract
-    let currentNonce = await publicClient.getTransactionCount({ address: relayerAddress });
+    let currentNonce = await publicClient.getTransactionCount({ address: account.address });
 
-    // Use nonce for receiveMessage
     const receiveHash = await walletClient.writeContract({
       address: mtOnDestination,
       abi: MESSAGE_TRANSMITTER_ABI as any,
       functionName: 'receiveMessage',
       args: [message as Hex, attestation as Hex],
+      nonce: currentNonce,
       chain,
-      account,
-      nonce: currentNonce
     });
     const receiveReceipt = await publicClient.waitForTransactionReceipt({ hash: receiveHash });
-    try {
-      console.debug('[completeTransfer] receiveReceipt', {
-        hash: receiveHash,
-        status: receiveReceipt?.status,
-        blockNumber: receiveReceipt?.blockNumber
-      });
-    } catch (_) {}
 
-    // Increment nonce for the next transaction (we'll use it first to top-up executor if needed)
-    currentNonce = currentNonce + 1;
+    currentNonce++;
 
-    // Decode hookData to extract recipient and amount so we can top-up executor with USDC if needed
-    let decodedRecipient: string | null = null;
-    let decodedAmount: bigint | null = null;
-    try {
-      const decoded = decodeAbiParameters(
-        [{ type: 'address' }, { type: 'uint256' }],
-        hookData as Hex
-      ) as any;
-      // decodeAbiParameters returns an array-like result
-      decodedRecipient = decoded?.[0] ?? null;
-      decodedAmount = typeof decoded?.[1] === 'bigint' ? decoded[1] : (decoded?.[1] ? BigInt(decoded[1].toString()) : null);
-      try {
-        console.debug('[completeTransfer] decoded hookData', {
-          decodedRecipient,
-          decodedAmount: decodedAmount?.toString?.() ?? null
-        });
-      } catch (_) {}
-    } catch (decodeErr) {
-      // If we can't decode, continue — executeHook may still revert but we surface a clearer message below.
-      console.warn('Failed to decode hookData:', decodeErr);
-    }
-
-    // If we successfully decoded an amount, attempt to wait for user's USDC to arrive at executor,
-    // and only top-up with relayer funds if it doesn't arrive within a short window.
-    if (decodedAmount !== null) {
-      // Find USDC contract for destination chain
-      const usdcContract = USDC_CONTRACTS.find((c: any) => c.chainId === destinationChainId);
-      if (!usdcContract) {
-        return NextResponse.json({ error: 'USDC not configured for destination chain' }, { status: 500 });
-      }
-
-      // Helper to read executor USDC balance (with debug)
-      const readExecutorBalance = async () => {
-        try {
-          const bal: any = await publicClient.readContract({
-            address: usdcContract.address as Hex,
-            abi: ERC20_ABI as any,
-            functionName: 'balanceOf',
-            args: [hookExecutorOnDest as Hex],
-          });
-          // bal may be bigint already
-          const numericBal = typeof bal === 'bigint' ? bal : BigInt(bal?.toString?.() ?? '0');
-          try {
-            console.debug('[completeTransfer] executor balance', { executor: hookExecutorOnDest, balance: numericBal.toString() });
-          } catch (_) {}
-          return numericBal;
-        } catch (readErr) {
-          console.warn('Failed to read executor USDC balance:', readErr);
-          return 0n;
-        }
-      };
-
-      // Poll for user's USDC arrival for a short window (e.g., 15s) before topping up
-      const pollInterval = 2000; // ms
-      const maxWait = 15000; // ms
-      let waited = 0;
-      let executorBalance = await readExecutorBalance();
-
-      while (executorBalance < decodedAmount && waited < maxWait) {
-        try {
-          console.debug('[completeTransfer] waiting for executor funds', { waited, executorBalance: executorBalance.toString(), needed: decodedAmount.toString() });
-        } catch (_) {}
-        await new Promise((res) => setTimeout(res, pollInterval));
-        waited += pollInterval;
-        executorBalance = await readExecutorBalance();
-      }
-
-      if (executorBalance >= decodedAmount) {
-        // Enough USDC arrived — skip top-up. Proceed to executeHook using the same nonce.
-        // (We still increment nonce below to ensure executeHook gets a unique nonce.)
-        currentNonce = currentNonce + 1;
-      } else {
-        // Top-up required: transfer from relayer to executor
-        try {
-          const transferHash = await walletClient.writeContract({
-            address: usdcContract.address as Hex,
-            abi: ERC20_ABI as any,
-            functionName: 'transfer',
-            args: [hookExecutorOnDest as Hex, decodedAmount],
-            chain,
-            account,
-            nonce: currentNonce
-          });
-          const transferReceipt = await publicClient.waitForTransactionReceipt({ hash: transferHash });
-          if (!transferReceipt || transferReceipt.status !== 1) {
-            return NextResponse.json({ error: 'Failed to transfer USDC to executor', details: transferReceipt }, { status: 500 });
-          }
-        } catch (transferErr: any) {
-          console.error('USDC transfer to executor failed:', transferErr);
-          return NextResponse.json({ error: 'Failed to top-up executor with USDC', message: transferErr?.message || String(transferErr) }, { status: 500 });
-        }
-
-        // Increment nonce for the executeHook transaction
-        currentNonce = currentNonce + 1;
-      }
-    }
-
-    // Step 5: execute hook on destination (with logging and error handling)
-    let execHash: string | undefined;
-    let execReceipt: any;
-    try {
-      console.debug('[completeTransfer] executing hook', { hookExecutorOnDest, nonce: currentNonce });
-      execHash = await walletClient.writeContract({
-        address: hookExecutorOnDest,
-        abi: HOOK_EXECUTOR_ABI as any,
-        functionName: 'executeHook',
-        args: [hookData as Hex],
-        chain,
-        account,
-        nonce: currentNonce
-      });
-      console.debug('[completeTransfer] executeHook tx sent', { execHash });
-    } catch (execSendErr: any) {
-      console.error('[completeTransfer] executeHook writeContract error', execSendErr);
-      return NextResponse.json({ error: 'executeHook send failed', message: execSendErr?.message || String(execSendErr) }, { status: 500 });
-    }
-
-    try {
-      execReceipt = await publicClient.waitForTransactionReceipt({ hash: execHash as Hex });
-      console.debug('[completeTransfer] execReceipt', {
-        hash: execHash,
-        status: execReceipt?.status,
-        blockNumber: execReceipt?.blockNumber
-      });
-    } catch (waitExecErr: any) {
-      console.error('[completeTransfer] waiting for executeHook receipt failed', waitExecErr);
-      return NextResponse.json({ error: 'executeHook receipt failed', message: waitExecErr?.message || String(waitExecErr) }, { status: 500 });
-    }
-
-    // Read executor USDC balance for debug (best-effort)
-    let executorBalance: string | null = null;
-    try {
-      const usdcContractForChain = USDC_CONTRACTS.find((c: any) => c.chainId === destinationChainId);
-      if (usdcContractForChain) {
-        const balRaw: any = await publicClient.readContract({
-          address: usdcContractForChain.address as Hex,
-          abi: ERC20_ABI as any,
-          functionName: 'balanceOf',
-          args: [hookExecutorOnDest as Hex],
-        });
-        const balBig = typeof balRaw === 'bigint' ? balRaw : BigInt(balRaw?.toString?.() ?? '0');
-        executorBalance = balBig.toString();
-        try { console.debug('[completeTransfer] executor balance before respond', { executor: hookExecutorOnDest, executorBalance }); } catch (_) {}
-      }
-    } catch (balErr: any) {
-      console.warn('[completeTransfer] failed to read executor balance for response', balErr);
-    }
+    const execHash = await walletClient.writeContract({
+      address: hookExecutorOnDest,
+      abi: HOOK_EXECUTOR_ABI as any,
+      functionName: 'executeHook',
+      args: [hookData as Hex],
+      nonce: currentNonce,
+      chain,
+    });
+    const execReceipt = await publicClient.waitForTransactionReceipt({ hash: execHash });
 
     return NextResponse.json(
       {
@@ -281,11 +83,11 @@ export async function POST(req: Request) {
         receiveStatus: receiveReceipt.status,
         execHash,
         execStatus: execReceipt.status,
-        executorBalance
       },
       { status: 200 }
     );
   } catch (err: any) {
+    console.error('[completeTransfer] error', err);
     return NextResponse.json(
       {
         error: 'completeTransfer failed',
