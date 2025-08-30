@@ -104,7 +104,7 @@ export default function ItemDetailPage() {
   return (
     <DashboardLayout showDashboardContent={false}>
       {/* Item Detail Section */}
-      <div style={{ padding: '20px' }}>
+      <div>
         {loading && (
           <div className="loading">Loading item details...</div>
         )}
@@ -120,7 +120,7 @@ export default function ItemDetailPage() {
         )}
 
           {!loading && !error && item && (
-            <div style={{ width: '100%', maxWidth: '800px', margin: '0 auto' }}>
+            <div style={{ width: '100%', maxWidth: '800px', margin: '20px auto 0' }}>
               <ItemCard
                 item={item}
                 currentUserAddress={address}

@@ -17,6 +17,7 @@ interface ItemCardProps {
   currentUserAddress?: string;
   onBuyItem?: (item: Item) => void;
   buyLoading?: boolean;
+  buyLabel?: string;
   showBuyButton?: boolean;
   isClickable?: boolean;
 }
@@ -26,6 +27,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
   currentUserAddress,
   onBuyItem,
   buyLoading = false,
+  buyLabel,
   showBuyButton = true,
   isClickable = true
 }) => {
@@ -71,7 +73,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
             disabled={buyLoading}
             style={{ marginTop: '15px' }}
           >
-            {buyLoading ? 'Processing...' : 'Buy Now'}
+            {buyLabel ? buyLabel : (buyLoading ? 'Processing...' : 'Buy Now')}
           </button>
         )}
       </div>

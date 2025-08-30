@@ -18,8 +18,9 @@ export async function performBuy(params: {
   chainId?: number;
   publicClient?: any;
   writeContractAsync: (arg: any) => Promise<any>;
+  onProgress?: (step: string) => void;
 }) : Promise<{ success: boolean; message: string; txHash?: string }> {
-  const { item, buyerAddress, chainId, publicClient, writeContractAsync } = params;
+  const { item, buyerAddress, chainId, publicClient, writeContractAsync, onProgress } = params;
 
   if (!item) return { success: false, message: "Item is required" };
   if (!buyerAddress) return { success: false, message: "Buyer wallet not connected" };
@@ -51,10 +52,16 @@ export async function performBuy(params: {
 
     const amount = parseUnits(item.price.toString(), 6);
 
+    // notify UI that processing has started
+    onProgress?.('processing');
+
     // Same-chain settlement (buyer on Base) - direct transfer to seller
     if (currentChainId === baseChainId) {
       const sellerAddress = item.seller?.wallet_address;
       if (!sellerAddress) return { success: false, message: "Seller wallet not found" };
+
+      // same-chain transfer step
+      onProgress?.('transferring');
 
       const txHash = await writeContractAsync({
         address: buyerUSDC.address,
@@ -83,6 +90,8 @@ export async function performBuy(params: {
           sourceChain: 'base-sepolia'
         })
       });
+      // transfer completed
+      onProgress?.('completed');
       if (!resp.ok) {
         const txt = await resp.text().catch(() => '');
         return { success: false, message: `Buy API failed: ${resp.status} ${txt}` };
@@ -123,6 +132,9 @@ export async function performBuy(params: {
 
     const minFinalityThreshold = 1000;
 
+    // notify UI that burn will be attempted
+    onProgress?.('burning');
+
     const sellerAddress = item.seller?.wallet_address;
     if (!sellerAddress) return { success: false, message: "Seller wallet not found" };
 
@@ -160,6 +172,9 @@ export async function performBuy(params: {
       // continue to poll Iris even if waiting failed
     }
 
+    // now poll for attestation
+    onProgress?.('polling');
+
     // Poll Iris for attestation
     const pollForAttestation = async (txHash: Hex) => {
       const sourceDomain = CHAIN_DOMAINS[currentChainId as keyof typeof CHAIN_DOMAINS];
@@ -183,6 +198,9 @@ export async function performBuy(params: {
 
     const { message, attestation } = await pollForAttestation(burnHash);
 
+    // notify UI that we are finalizing on destination
+    onProgress?.('finalizing');
+
     // Finalize via backend
     const finalizeResp = await fetch('/api/cctp/completeTransfer', {
       method: 'POST',
@@ -198,6 +216,8 @@ export async function performBuy(params: {
       const txt = await finalizeResp.text().catch(() => '');
       return { success: false, message: `Finalize failed: ${finalizeResp.status} ${txt}` };
     }
+    // finalization complete
+    onProgress?.('completed');
 
     // Record purchase backend
     const recordResp = await fetch('/api/marketplace/buy', {

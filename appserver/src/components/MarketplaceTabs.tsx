@@ -21,7 +21,9 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [buyLoading, setBuyLoading] = useState<string | null>(null);
+  const [buyLabel, setBuyLabel] = useState<string | null>(null);
   const [buyMessage, setBuyMessage] = useState<string | null>(null);
+  const buyMessageTimeoutRef = React.useRef<number | null>(null);
 
   const fetchData = async (tab: 'sale' | 'listings' | 'selling' | 'buying') => {
     setLoading(true);
@@ -114,7 +116,12 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
     }
 
     setBuyLoading(item.id);
+    setBuyLabel(null);
     setBuyMessage(null);
+    if (buyMessageTimeoutRef.current) {
+      window.clearTimeout(buyMessageTimeoutRef.current);
+      buyMessageTimeoutRef.current = null;
+    }
 
     try {
       // Reuse shared performBuy helper which implements hybrid settlement
@@ -123,7 +130,19 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
         buyerAddress: userAddress,
         chainId: chainId as number | undefined,
         publicClient,
-        writeContractAsync
+        writeContractAsync,
+        onProgress: (step: string) => {
+          // Map internal steps to user-facing labels
+          const labels: Record<string, string> = {
+            processing: 'Processing...',
+            transferring: 'Transferring USDC...',
+            burning: 'Burning (cross-chain)...',
+            polling: 'Waiting for attestation...',
+            finalizing: 'Finalizing on destination...',
+            completed: 'Done'
+          };
+          setBuyLabel(labels[step] || step);
+        }
       });
 
       if (!result.success) {
@@ -131,6 +150,12 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
       }
 
       setBuyMessage(result.message);
+
+      // Hide success message after 5 seconds
+      buyMessageTimeoutRef.current = window.setTimeout(() => {
+        setBuyMessage(null);
+      }, 5000);
+
       // Refresh the sale/buying tab data where relevant
       if (activeTab === 'sale') {
         fetchData('sale');
@@ -141,8 +166,13 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
     } catch (err) {
       console.error('Error purchasing item:', err);
       setBuyMessage(err instanceof Error ? err.message : 'Failed to purchase item');
+      // Hide error after 5s as well
+      buyMessageTimeoutRef.current = window.setTimeout(() => {
+        setBuyMessage(null);
+      }, 5000);
     } finally {
       setBuyLoading(null);
+      setBuyLabel(null);
     }
   };
 
@@ -198,17 +228,18 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                     {saleItems.map((item) => {
                       const isOwnItem = userAddress && item.seller?.wallet_address?.toLowerCase() === userAddress.toLowerCase();
                       
-                      return (
-                        <ItemCard
-                          key={item.id}
-                          item={item}
-                          currentUserAddress={userAddress}
-                          onBuyItem={handleBuyItem}
-                          buyLoading={buyLoading === item.id}
-                          showBuyButton={true}
-                          isClickable={true}
-                        />
-                      );
+                    return (
+                      <ItemCard
+                        key={item.id}
+                        item={item}
+                        currentUserAddress={userAddress}
+                        onBuyItem={handleBuyItem}
+                        buyLoading={buyLoading === item.id}
+                        buyLabel={buyLoading === item.id ? buyLabel ?? undefined : undefined}
+                        showBuyButton={true}
+                        isClickable={true}
+                      />
+                    );
                     })}
                   </div>
                 )}
