@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createPublicClient, createWalletClient, http, Hex } from 'viem';
+import { createPublicClient, createWalletClient, http, Hex, decodeAbiParameters } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { baseSepolia, arbitrumSepolia, sepolia } from 'viem/chains';
 
@@ -9,6 +9,8 @@ import {
   MESSAGE_TRANSMITTER_CONTRACTS,
   HOOK_EXECUTOR_ABI,
   HOOK_EXECUTOR_CONTRACTS,
+  ERC20_ABI,
+  USDC_CONTRACTS
 } from '../../../../components/wagmi/config';
 
 // Map chainId to viem chain objects (extend as needed)
@@ -101,8 +103,92 @@ export async function POST(req: Request) {
     });
     const receiveReceipt = await publicClient.waitForTransactionReceipt({ hash: receiveHash });
 
-    // Increment nonce for the next transaction (executeHook)
+    // Increment nonce for the next transaction (we'll use it first to top-up executor if needed)
     currentNonce = currentNonce + 1;
+
+    // Decode hookData to extract recipient and amount so we can top-up executor with USDC if needed
+    let decodedRecipient: string | null = null;
+    let decodedAmount: bigint | null = null;
+    try {
+      const decoded = decodeAbiParameters(
+        [{ type: 'address' }, { type: 'uint256' }],
+        hookData as Hex
+      ) as any;
+      // decodeAbiParameters returns an array-like result
+      decodedRecipient = decoded?.[0] ?? null;
+      decodedAmount = typeof decoded?.[1] === 'bigint' ? decoded[1] : (decoded?.[1] ? BigInt(decoded[1].toString()) : null);
+    } catch (decodeErr) {
+      // If we can't decode, continue — executeHook may still revert but we surface a clearer message below.
+      console.warn('Failed to decode hookData:', decodeErr);
+    }
+
+    // If we successfully decoded an amount, attempt to wait for user's USDC to arrive at executor,
+    // and only top-up with relayer funds if it doesn't arrive within a short window.
+    if (decodedAmount !== null) {
+      // Find USDC contract for destination chain
+      const usdcContract = USDC_CONTRACTS.find((c: any) => c.chainId === destinationChainId);
+      if (!usdcContract) {
+        return NextResponse.json({ error: 'USDC not configured for destination chain' }, { status: 500 });
+      }
+
+      // Helper to read executor USDC balance
+      const readExecutorBalance = async () => {
+        try {
+          const bal: any = await publicClient.readContract({
+            address: usdcContract.address as Hex,
+            abi: ERC20_ABI as any,
+            functionName: 'balanceOf',
+            args: [hookExecutorOnDest as Hex],
+          });
+          // bal may be bigint already
+          return typeof bal === 'bigint' ? bal : BigInt(bal?.toString?.() ?? '0');
+        } catch (readErr) {
+          console.warn('Failed to read executor USDC balance:', readErr);
+          return 0n;
+        }
+      };
+
+      // Poll for user's USDC arrival for a short window (e.g., 15s) before topping up
+      const pollInterval = 2000; // ms
+      const maxWait = 15000; // ms
+      let waited = 0;
+      let executorBalance = await readExecutorBalance();
+
+      while (executorBalance < decodedAmount && waited < maxWait) {
+        await new Promise((res) => setTimeout(res, pollInterval));
+        waited += pollInterval;
+        executorBalance = await readExecutorBalance();
+      }
+
+      if (executorBalance >= decodedAmount) {
+        // Enough USDC arrived — skip top-up. Proceed to executeHook using the same nonce.
+        // (We still increment nonce below to ensure executeHook gets a unique nonce.)
+        currentNonce = currentNonce + 1;
+      } else {
+        // Top-up required: transfer from relayer to executor
+        try {
+          const transferHash = await walletClient.writeContract({
+            address: usdcContract.address as Hex,
+            abi: ERC20_ABI as any,
+            functionName: 'transfer',
+            args: [hookExecutorOnDest as Hex, decodedAmount],
+            chain,
+            account,
+            nonce: currentNonce
+          });
+          const transferReceipt = await publicClient.waitForTransactionReceipt({ hash: transferHash });
+          if (!transferReceipt || transferReceipt.status !== 1) {
+            return NextResponse.json({ error: 'Failed to transfer USDC to executor', details: transferReceipt }, { status: 500 });
+          }
+        } catch (transferErr: any) {
+          console.error('USDC transfer to executor failed:', transferErr);
+          return NextResponse.json({ error: 'Failed to top-up executor with USDC', message: transferErr?.message || String(transferErr) }, { status: 500 });
+        }
+
+        // Increment nonce for the executeHook transaction
+        currentNonce = currentNonce + 1;
+      }
+    }
 
     // Step 5: execute hook on destination
     const execHash = await walletClient.writeContract({

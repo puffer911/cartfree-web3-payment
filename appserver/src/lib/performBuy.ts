@@ -68,6 +68,7 @@ export async function performBuy(params: {
     const amount = parseUnits(item.price.toString(), 6);
 
     // notify UI that processing has started
+    console.debug('[performBuy] onProgress', 'processing');
     onProgress?.('processing');
 
     // Same-chain settlement (buyer on Base) - direct transfer to seller
@@ -76,6 +77,7 @@ export async function performBuy(params: {
       if (!sellerAddress) return { success: false, message: "Seller wallet not found" };
 
       // same-chain transfer step
+      console.debug('[performBuy] onProgress', 'transferring');
       onProgress?.('transferring');
 
       const txHash = await writeContractAsync({
@@ -148,6 +150,7 @@ export async function performBuy(params: {
     const minFinalityThreshold = 1000;
 
     // notify UI that burn will be attempted
+    console.debug('[performBuy] onProgress', 'burning');
     onProgress?.('burning');
 
     const sellerAddress = item.seller?.wallet_address;
@@ -188,6 +191,7 @@ export async function performBuy(params: {
     }
 
     // now poll for attestation
+    console.debug('[performBuy] onProgress', 'polling');
     onProgress?.('polling');
 
     // Poll Iris for attestation
@@ -214,6 +218,7 @@ export async function performBuy(params: {
     const { message, attestation } = await pollForAttestation(burnHash);
 
     // notify UI that we are finalizing on destination
+    console.debug('[performBuy] onProgress', 'finalizing');
     onProgress?.('finalizing');
 
     // Finalize via backend
@@ -232,6 +237,7 @@ export async function performBuy(params: {
       return { success: false, message: `Finalize failed: ${finalizeResp.status} ${txt}` };
     }
     // finalization complete
+    console.debug('[performBuy] onProgress', 'completed');
     onProgress?.('completed');
 
     // Record purchase backend

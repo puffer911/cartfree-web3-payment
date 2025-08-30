@@ -39,6 +39,8 @@ export default function ItemDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [buyLoading, setBuyLoading] = useState(false);
   const [buyMessage, setBuyMessage] = useState<string | null>(null);
+  const [buyLabel, setBuyLabel] = useState<string | null>(null);
+  const buyMessageTimeoutRef = React.useRef<number | null>(null);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -73,7 +75,12 @@ export default function ItemDetailPage() {
     // Reuse shared performBuy helper (same behavior as marketplace tabs)
     // Accept optional itemArg so this function can be used as a callback from ItemCard (which passes the item)
     setBuyLoading(true);
+    setBuyLabel(null);
     setBuyMessage(null);
+    if (buyMessageTimeoutRef.current) {
+      window.clearTimeout(buyMessageTimeoutRef.current);
+      buyMessageTimeoutRef.current = null;
+    }
 
     const targetItem = itemArg ?? item;
 
@@ -83,7 +90,18 @@ export default function ItemDetailPage() {
         buyerAddress: address as string,
         chainId: chainId as number | undefined,
         publicClient,
-        writeContractAsync
+        writeContractAsync,
+        onProgress: (step: string) => {
+          const labels: Record<string, string> = {
+            processing: 'Processing...',
+            transferring: 'Transferring USDC...',
+            burning: 'Burning (cross-chain)...',
+            polling: 'Waiting for attestation...',
+            finalizing: 'Finalizing on destination...',
+            completed: 'Done'
+          };
+          setBuyLabel(labels[step] || step);
+        }
       });
 
       if (!result.success) {
@@ -91,11 +109,22 @@ export default function ItemDetailPage() {
       }
 
       setBuyMessage(result.message);
+
+      // Hide success message after 5 seconds
+      buyMessageTimeoutRef.current = window.setTimeout(() => {
+        setBuyMessage(null);
+      }, 5000);
     } catch (err) {
       console.error('Error purchasing item:', err);
       setBuyMessage(err instanceof Error ? err.message : 'Failed to purchase item');
+
+      // Hide error after 5s as well
+      buyMessageTimeoutRef.current = window.setTimeout(() => {
+        setBuyMessage(null);
+      }, 5000);
     } finally {
       setBuyLoading(false);
+      setBuyLabel(null);
     }
   };
 
@@ -126,6 +155,7 @@ export default function ItemDetailPage() {
                 currentUserAddress={address}
                 onBuyItem={handleBuyItem}
                 buyLoading={buyLoading}
+                buyLabel={buyLoading ? buyLabel ?? undefined : undefined}
                 showBuyButton={true}
                 isClickable={false}
               />

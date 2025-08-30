@@ -23,7 +23,9 @@
     "incremental": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     },
     "plugins": [
       {
@@ -33,7 +35,8 @@
   },
   "include": [
     "src/app",
-    "src/components"
+    "src/components",
+    ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
