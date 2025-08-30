@@ -78,7 +78,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
       </div>
       {item.image_url && (
         <div className="item-image-right">
-          <Image src={item.image_url} alt={item.title} width={150} height={150} />
+          <Image src={item.image_url} alt={item.title} width={500} height={500} />
         </div>
       )}
     </div>
