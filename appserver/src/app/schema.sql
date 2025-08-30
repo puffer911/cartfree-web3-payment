@@ -21,6 +21,7 @@ CREATE TABLE public.transactions (
   amount numeric NOT NULL,
   source_chain text NOT NULL,
   status text NOT NULL,
+  status tx_hash NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT transactions_pkey PRIMARY KEY (id),
   CONSTRAINT transactions_buyer_id_fkey FOREIGN KEY (buyer_id) REFERENCES public.users(id),
