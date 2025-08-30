@@ -643,7 +643,7 @@ ul li:before {
 .item-price, .order-status, .order-chain {
   font-weight: 600;
   color: #0984e3;
-  margin: 8px 8px 8px 0;
+  margin: 8px 0;
   padding: 4px 8px;
   background: rgba(9, 132, 227, 0.1);
   border-radius: 6px;
@@ -654,7 +654,7 @@ ul li:before {
 .item-status {
   font-weight: 500;
   color: #00b894;
-  margin-top: 8px;
+  margin: 8px 0;
   padding: 4px 8px;
   background: rgba(0, 184, 148, 0.1);
   border-radius: 6px;
@@ -666,7 +666,7 @@ ul li:before {
 .item-seller {
   font-weight: 500;
   color: #fd79a8;
-  margin-top: 8px;
+  margin: 8px 0;
   padding: 4px 8px;
   background: rgba(253, 121, 168, 0.1);
   border-radius: 6px;
