@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { getSellingOrders } from '@/lib/supabase/queries';
 
 // Initialize Supabase client with server-side credentials
 const supabase = createSupabaseServerClient();
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -15,53 +17,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get user ID from wallet address
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('wallet_address', walletAddress)
-      .single();
-
-    if (userError) {
-      // User not found - return empty orders instead of error
-      if (userError.code === 'PGRST116') {
-        return NextResponse.json({
-          success: true,
-          sellingOrders: []
-        });
-      }
-      
-      console.error('Error fetching user:', userError);
-      return NextResponse.json(
-        { error: 'Failed to fetch user data' },
-        { status: 500 }
-      );
-    }
-
-    // Get user's selling orders (transactions where user is seller)
-    const { data: sellingOrders, error: ordersError } = await supabase
-      .from('transactions')
-      .select(`
-        *,
-        listings:listing_id (
-          title,
-          description,
-          price
-        ),
-        buyer:buyer_id (
-          wallet_address
-        )
-      `)
-      .eq('seller_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (ordersError) {
-      console.error('Error fetching selling orders:', ordersError);
-      return NextResponse.json(
-        { error: 'Failed to fetch selling orders' },
-        { status: 500 }
-      );
-    }
+    // Use reusable helper to fetch selling orders and normalize joins/fallbacks
+    const sellingOrders = await getSellingOrders(supabase, walletAddress);
 
     return NextResponse.json({
       success: true,

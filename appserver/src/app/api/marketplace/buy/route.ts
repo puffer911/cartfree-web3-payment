@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create transaction
+    // Create transaction (record as paid and return buyer/seller join info)
     const { data: transaction, error: transactionError } = await supabase
       .from('transactions')
       .insert([
@@ -62,10 +62,21 @@ export async function POST(request: NextRequest) {
           seller_id: listing.seller_id,
           amount: amount,
           source_chain: sourceChain,
-          status: 'pending'
+          status: 'paid'
         }
       ])
-      .select()
+      .select(`
+        *,
+        listings:listing_id (
+          title
+        ),
+        buyer:buyer_id (
+          wallet_address
+        ),
+        seller:seller_id (
+          wallet_address
+        )
+      `)
       .single();
 
     if (transactionError) {
