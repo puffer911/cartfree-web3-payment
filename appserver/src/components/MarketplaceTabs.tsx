@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ItemCard } from './ItemCard';
 import { OrderCard } from './OrderCard';
 import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
@@ -25,7 +25,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
   const [buyMessage, setBuyMessage] = useState<string | null>(null);
   const buyMessageTimeoutRef = React.useRef<number | null>(null);
 
-  const fetchData = async (tab: 'sale' | 'listings' | 'selling' | 'buying') => {
+  const fetchData = useCallback(async (tab: 'sale' | 'listings' | 'selling' | 'buying') => {
     setLoading(true);
     setError(null);
 
@@ -95,7 +95,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
     } finally {
       setLoading(false);
     }
-  };
+  }, [userAddress, setSaleItems, setListings, setSellingOrders, setBuyingOrders, setLoading, setError]);
 
   useEffect(() => {
     fetchData(activeTab);

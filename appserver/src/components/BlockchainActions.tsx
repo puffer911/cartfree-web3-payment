@@ -21,7 +21,7 @@ export const BlockchainActions: React.FC<BlockchainActionsProps> = ({ isConnecte
           <span className="card-icon">⛓️</span>
           Features
         </h3>
-        <p>Once connected, you'll be able to:</p>
+        <p>Once connected, you&apos;ll be able to:</p>
         <ul>
           <li>Check balance</li>
           <li>Create listings</li>

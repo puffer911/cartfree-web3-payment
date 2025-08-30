@@ -192,7 +192,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
             >
               Show more
             </button>
-            <div style={{ color: '#6b7280', fontSize: 13 }}>Click "Show more" to enter full details</div>
+            <div style={{ color: '#6b7280', fontSize: 13 }}>Click &quot;Show more&quot; to enter full details</div>
           </div>
 
           {message && (
