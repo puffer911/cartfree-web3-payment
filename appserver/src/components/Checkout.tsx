@@ -136,7 +136,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
 
   return (
     <div className="checkout-card">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', justifyContent: 'space-between'}}>
         <h3 className="card-title" style={{ margin: 0 }}>
           <span className="card-icon">💳</span>
           Create Listing
