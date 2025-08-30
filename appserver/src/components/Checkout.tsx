@@ -22,6 +22,9 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
   const [message, setMessage] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  // Collapsible state: default collapsed
+  const [collapsed, setCollapsed] = useState(true);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -50,8 +53,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
 
     // Create preview
     const reader = new FileReader();
-    reader.onload = (e) => {
-      setImagePreview(e.target?.result as string);
+    reader.onload = (ev) => {
+      setImagePreview(ev.target?.result as string);
     };
     reader.readAsDataURL(file);
   };
@@ -105,6 +108,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
       });
       setImagePreview(null);
 
+      // Optionally collapse the form after successful creation
+      setCollapsed(true);
     } catch (error) {
       console.error('Error creating listing:', error);
       setMessage(error instanceof Error ? error.message : 'Failed to create listing');
@@ -131,87 +136,110 @@ export const Checkout: React.FC<CheckoutProps> = ({ isConnected, userAddress }) 
 
   return (
     <div className="checkout-card">
-      <h3 className="card-title">
-        <span className="card-icon">💳</span>
-        Create Listing
-      </h3>
-      
-      <div className="checkout-form">
-        <div className="form-group">
-          <label htmlFor="title">Product Title *</label>
-          <input
-            type="text"
-            id="title"
-            name="title"
-            value={formData.title}
-            onChange={handleInputChange}
-            placeholder="Enter product title"
-            required
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="description">Description</label>
-          <textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleInputChange}
-            placeholder="Describe your product"
-            rows={3}
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="price">Price *</label>
-          <input
-            type="number"
-            id="price"
-            name="price"
-            value={formData.price}
-            onChange={handleInputChange}
-            placeholder="0.00"
-            step="0.01"
-            min="0"
-            required
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="image">Product Image</label>
-          <input
-            type="file"
-            id="image"
-            name="image"
-            accept="image/jpeg,image/png"
-            onChange={handleImageChange}
-          />
-          <small>Max 5MB, JPEG or PNG only</small>
-        </div>
-
-        {imagePreview && (
-          <div className="image-preview">
-            <img src={imagePreview} alt="Preview" />
-            <button type="button" onClick={removeImage} className="remove-image-btn">
-              Remove Image
-            </button>
-          </div>
-        )}
-
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <h3 className="card-title" style={{ margin: 0 }}>
+          <span className="card-icon">💳</span>
+          Create Listing
+        </h3>
         <button
-          onClick={createListing}
-          className="create-listing-btn"
-          disabled={loading}
+          type="button"
+          onClick={() => setCollapsed(prev => !prev)}
+          className="sell-now-btn"
+          aria-expanded={!collapsed}
+          style={{
+            marginLeft: 'auto',
+            backgroundColor: '#10B981',
+            color: '#ffffff',
+            border: 'none',
+            padding: '6px 12px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 600
+          }}
         >
-          {loading ? 'Creating...' : 'Create Listing'}
+          {collapsed ? 'Sell Now' : 'Hide Form'}
         </button>
-
-        {message && (
-          <div className={`message ${message.includes('success') ? 'success' : 'error'}`}>
-            {message}
-          </div>
-        )}
       </div>
+      
+      {/* Collapsible form: hidden when collapsed */}
+      {!collapsed && (
+        <div className="checkout-form" style={{ marginTop: '12px' }}>
+          <div className="form-group">
+            <label htmlFor="title">Product Title *</label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              placeholder="Enter product title"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="description">Description</label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              placeholder="Describe your product"
+              rows={3}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="price">Price *</label>
+            <input
+              type="number"
+              id="price"
+              name="price"
+              value={formData.price}
+              onChange={handleInputChange}
+              placeholder="0.00"
+              step="0.01"
+              min="0"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="image">Product Image</label>
+            <input
+              type="file"
+              id="image"
+              name="image"
+              accept="image/jpeg,image/png"
+              onChange={handleImageChange}
+            />
+            <small>Max 5MB, JPEG or PNG only</small>
+          </div>
+
+          {imagePreview && (
+            <div className="image-preview">
+              <img src={imagePreview} alt="Preview" />
+              <button type="button" onClick={removeImage} className="remove-image-btn">
+                Remove Image
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={createListing}
+            className="create-listing-btn"
+            disabled={loading}
+          >
+            {loading ? 'Creating...' : 'Create Listing'}
+          </button>
+
+          {message && (
+            <div className={`message ${message.includes('success') ? 'success' : 'error'}`} style={{ marginTop: '10px' }}>
+              {message}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
