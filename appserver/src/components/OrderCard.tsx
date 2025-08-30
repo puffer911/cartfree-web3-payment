@@ -5,6 +5,7 @@ interface Order {
   amount: number;
   status: string;
   source_chain: string;
+  created_at?: string;
   listings?: {
     title: string;
   };
@@ -71,6 +72,16 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, type }) => {
     }
   };
 
+  const formatDate = (iso?: string) => {
+    if (!iso) return 'Unknown';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString();
+    } catch {
+      return iso;
+    }
+  };
+
   const counterpartyAddress = getCounterpartyAddress();
 
   return (
@@ -83,16 +94,24 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, type }) => {
         Amount: {formatAmount(order.amount)} USDC
       </p>
 
-      <p title={counterpartyAddress}>
-        {getCounterpartyLabel()}: {formatAddress(counterpartyAddress)}
+      <p title={order.buyer?.wallet_address || 'Unknown'}>
+        Buyer: {formatAddress(order.buyer?.wallet_address || 'Unknown')}
+      </p>
+
+      <p title={order.seller?.wallet_address || 'Unknown'}>
+        Seller: {formatAddress(order.seller?.wallet_address || 'Unknown')}
+      </p>
+
+      <p>
+        Transaction Date: {formatDate(order.created_at)}
       </p>
 
       <div className="order-status">
-        Status: {formatStatus(order.status)}
+        Status: Paid
       </div>
 
       <div className="order-chain">
-        Source: {formatChain(order.source_chain)}
+        Buyer Chain: {formatChain(order.source_chain)}
       </div>
     </div>
   );

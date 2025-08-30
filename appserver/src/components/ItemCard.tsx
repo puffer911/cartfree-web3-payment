@@ -55,7 +55,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
         <div className="item-header">
           <h5>{item.title}</h5>
         </div>
-        <p>{item.description}</p>
+        <p style={{ whiteSpace: 'pre-line' }}>{item.description}</p>
         <div className="item-details">
           <div className="item-price">${item.price} USDC</div>
           <div className="item-status">Status: {item.status}</div>
