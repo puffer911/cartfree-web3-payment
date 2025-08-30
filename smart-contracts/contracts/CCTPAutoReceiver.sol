@@ -15,8 +15,8 @@ import "../interfaces/ITokenMessenger.sol";
  */
 contract CCTPAutoReceiver is Ownable, ReentrancyGuard, Pausable {
     // Base Sepolia CCTP contract addresses
-    address public constant MESSAGE_TRANSMITTER = 0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5;
-    address public constant TOKEN_MESSENGER = 0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5;
+    address public constant MESSAGE_TRANSMITTER = 0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275;
+    address public constant TOKEN_MESSENGER = 0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA;
     address public constant USDC_TOKEN = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
 
     // Domain IDs for CCTP

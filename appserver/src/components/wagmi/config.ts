@@ -76,9 +76,9 @@ export const USDC_CONTRACTS = [
 
 // CCTP V2 Contract Addresses (Testnet TokenMessenger contracts)
 export const CCTP_CONTRACTS = {
-  11155111: getAddress("0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5"), // Ethereum Sepolia CCTP
-  421614: getAddress("0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5"),    // Arbitrum Sepolia CCTP  
-  84532: getAddress("0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5")      // Base Sepolia CCTP
+  11155111: getAddress("0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA"), // Ethereum Sepolia CCTP
+  421614: getAddress("0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA"),    // Arbitrum Sepolia CCTP  
+  84532: getAddress("0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA")      // Base Sepolia CCTP
 } as const;
 
 // Domain mapping for CCTP

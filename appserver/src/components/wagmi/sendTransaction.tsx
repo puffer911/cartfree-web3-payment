@@ -110,8 +110,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         // Step 2: Execute CCTP depositForBurnWithCaller
         setTransferStep('burning');
         // Convert address to bytes32 by padding with zeros
-        // const mintRecipientBytes32 = padHex(to, { size: 32 });
-        const mintRecipientBytes32 = encodePacked(['address'], [to]);
+        const mintRecipientBytes32 = `0x${to.replace('0x', '').padStart(64, '0')}` as Hex;
         
         const burnHash = await writeContractAsync({
           address: cctpContract,
@@ -122,7 +121,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
             destinationDomain,
             mintRecipientBytes32,
             currentUSDCContract.address,
-            "0x55f6268587cC1ba10fe1Df056c3a58dB00623Af3" // Hook contract address
+            "0xdeDB591e1a23A5A691E0d00Da99e0506A2F00468" // Hook contract address
           ]
         });
         
