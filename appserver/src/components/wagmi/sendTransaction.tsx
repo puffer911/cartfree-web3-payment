@@ -314,7 +314,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
   return (
     <div className="usdc-transfer-container">
       <h2>Send USDC</h2>
-      <form onSubmit={submit} className="usdc-form">
+      <form onSubmit={submit} className="usdc-form" ref={formRef}>
         <div className="form-group">
           <label>Destination Chain</label>
           <div className="destination-display">Base</div>
@@ -340,7 +340,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         <button disabled={isTransferPending || isProcessing} type="submit" className="send-btn">
           {transferStep === 'approving' ? 'Approving USDC...' :
            transferStep === 'burning' ? 'Burning USDC...' :
-           transferStep === 'completed' ? 'Transfer Complete!' :
+           transferStep === 'completed' ? 'Send USDC' :
            isTransferPending ? 'Confirming...' : 'Send USDC'}
         </button>
       </form>
