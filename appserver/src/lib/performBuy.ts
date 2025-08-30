@@ -98,7 +98,7 @@ export async function performBuy(params: {
         }
       }
 
-      // Record purchase on backend
+      // Record purchase on backend (include same-chain tx hash)
       const resp = await fetch('/api/marketplace/buy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -106,7 +106,8 @@ export async function performBuy(params: {
           walletAddress: buyerAddress,
           listingId: item.id,
           amount: item.price,
-          sourceChain: sourceChainLabel
+          sourceChain: sourceChainLabel,
+          txHash: txHash
         })
       });
       // transfer completed
@@ -308,19 +309,16 @@ export async function performBuy(params: {
       return { success: false, message: `Finalize failed: ${finalizeResp.status} ${finalizeText}` };
     }
 
-    try {
-      // attempt to parse JSON body if present for richer logging
-      const jsonBody = (() => {
-        try { return JSON.parse(finalizeText); } catch { return null; }
-      })();
-      console.debug('[performBuy] finalize success', { status: finalizeResp.status, body: jsonBody ?? finalizeText });
-    } catch (_) {}
+    // attempt to parse JSON body if present for richer logging
+    let finalizeJson: any = null;
+    try { finalizeJson = JSON.parse(finalizeText); } catch {}
+    console.debug('[performBuy] finalize success', { status: finalizeResp.status, body: finalizeJson ?? finalizeText });
 
     // finalization complete
     console.debug('[performBuy] onProgress', 'completed');
     onProgress?.('completed');
 
-    // Record purchase backend
+    // Record purchase backend (include execHash if available, else use burnHash)
     const recordResp = await fetch('/api/marketplace/buy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -328,7 +326,8 @@ export async function performBuy(params: {
         walletAddress: buyerAddress,
         listingId: item.id,
         amount: item.price,
-        sourceChain: sourceChainLabel
+        sourceChain: sourceChainLabel,
+        txHash: finalizeJson?.execHash ?? burnHash
       })
     });
     if (!recordResp.ok) {

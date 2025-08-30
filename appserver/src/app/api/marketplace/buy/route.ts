@@ -9,11 +9,12 @@ interface BuyRequest {
   listingId: string;
   amount: number;
   sourceChain: string;
+  txHash?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { walletAddress, listingId, amount, sourceChain }: BuyRequest = await request.json();
+    const { walletAddress, listingId, amount, sourceChain, txHash }: BuyRequest = await request.json();
 
     if (!walletAddress || !listingId || !amount || !sourceChain) {
       return NextResponse.json(
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
           seller_id: listing.seller_id,
           amount: amount,
           source_chain: sourceChain,
+          tx_hash: txHash ?? null,
           status: 'paid'
         }
       ])

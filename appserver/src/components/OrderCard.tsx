@@ -15,6 +15,7 @@ interface Order {
   seller?: {
     wallet_address: string;
   };
+  tx_hash?: string | null;
 }
 
 interface OrderCardProps {
@@ -84,6 +85,18 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, type }) => {
 
   const counterpartyAddress = getCounterpartyAddress();
 
+  const formatHash = (h?: string | null) => {
+    if (!h) return null;
+    if (typeof h !== 'string') return String(h);
+    if (h.startsWith('0x') && h.length > 12) return `${h.substring(0,8)}...${h.substring(h.length-6)}`;
+    return h;
+  };
+
+  const explorerUrl = (hash?: string | null) => {
+    if (!hash) return null;
+    return `https://sepolia.basescan.org/tx/${hash}`;
+  };
+
   return (
     <div className="order-card">
       <h5 title={order.listings?.title || 'Unknown Listing'}>
@@ -113,6 +126,21 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, type }) => {
       <div className="order-chain">
         Buyer Chain: {formatChain(order.source_chain)}
       </div>
+
+      {order.tx_hash ? (
+        <div className="order-explorer">
+          Transaction:{" "}
+          <a
+            href={explorerUrl(order.tx_hash) || '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={order.tx_hash}
+            className="text-blue-600 underline"
+          >
+            {formatHash(order.tx_hash)}
+          </a>
+        </div>
+      ) : null}
     </div>
   );
 };
