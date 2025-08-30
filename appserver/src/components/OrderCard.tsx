@@ -107,7 +107,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({ order, type }) => {
       </p>
 
       <div className="order-status">
-        Status: Paid
+        Status: {formatStatus(order.status)}
       </div>
 
       <div className="order-chain">

@@ -47,6 +47,21 @@ export async function performBuy(params: {
     const baseChainId = 84532;
     const currentChainId = chainId as number;
 
+    // derive a readable sourceChain label (used when recording transactions)
+    const getSourceChainLabel = (id: number) => {
+      switch (id) {
+        case 84532:
+          return 'base-sepolia';
+        case 421614:
+          return 'arbitrum-sepolia';
+        case 11155111:
+          return 'ethereum-sepolia';
+        default:
+          return String(id);
+      }
+    };
+    const sourceChainLabel = getSourceChainLabel(currentChainId);
+
     const buyerUSDC = USDC_CONTRACTS.find(c => c.chainId === currentChainId);
     if (!buyerUSDC) return { success: false, message: "USDC not available on your current chain" };
 
@@ -87,7 +102,7 @@ export async function performBuy(params: {
           walletAddress: buyerAddress,
           listingId: item.id,
           amount: item.price,
-          sourceChain: 'base-sepolia'
+          sourceChain: sourceChainLabel
         })
       });
       // transfer completed
@@ -227,7 +242,7 @@ export async function performBuy(params: {
         walletAddress: buyerAddress,
         listingId: item.id,
         amount: item.price,
-        sourceChain: 'base-sepolia'
+        sourceChain: sourceChainLabel
       })
     });
     if (!recordResp.ok) {
