@@ -1,4 +1,5 @@
 import React from 'react';
+import BuyButton from './BuyButton';
 
 interface Item {
   id: string;
@@ -66,15 +67,12 @@ export const ItemCard: React.FC<ItemCardProps> = ({
           )}
         </div>
         {showBuyButton && !isOwnItem && onBuyItem && (
-          <button
-            type="button"
-            className="buy-btn"
+          <BuyButton
             onClick={handleBuyClick}
-            disabled={buyLoading}
+            loading={buyLoading}
+            label={buyLabel ?? undefined}
             style={{ marginTop: '15px' }}
-          >
-            {buyLabel ? buyLabel : (buyLoading ? 'Processing...' : 'Buy Now')}
-          </button>
+          />
         )}
       </div>
       {item.image_url && (

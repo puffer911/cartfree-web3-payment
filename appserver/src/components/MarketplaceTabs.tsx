@@ -224,7 +224,7 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
                 {saleItems.length === 0 ? (
                   <p>No items available for sale.</p>
                 ) : (
-                  <div className="items-list">
+                      <div className="items-list">
                     {saleItems.map((item) => {
                       const isOwnItem = userAddress && item.seller?.wallet_address?.toLowerCase() === userAddress.toLowerCase();
                       

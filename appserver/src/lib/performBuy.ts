@@ -149,6 +149,53 @@ export async function performBuy(params: {
 
     const minFinalityThreshold = 1000;
 
+    // Before attempting burn, ensure tokenMessenger is approved to spend buyer USDC.
+    // If allowance is sufficient, skip approval. Otherwise send an approve(tx).
+    try {
+      if (!publicClient) return { success: false, message: "RPC client not available for current chain" };
+
+      // Read allowance(buyer, tokenMessenger)
+      let allowanceRaw: any = null;
+      try {
+        allowanceRaw = await publicClient.readContract({
+          address: buyerUSDC.address,
+          abi: ERC20_ABI as any,
+          functionName: 'allowance',
+          args: [buyerAddress as Hex, tokenMessenger as Hex],
+        });
+      } catch (readErr) {
+        // If read fails, we'll attempt to approve proactively below.
+        allowanceRaw = null;
+      }
+
+      const allowance = allowanceRaw === null ? 0n : (typeof allowanceRaw === 'bigint' ? allowanceRaw : BigInt(allowanceRaw?.toString?.() || '0'));
+
+      if (allowance < amount) {
+        // Request approval from buyer
+        console.debug('[performBuy] onProgress', 'approving');
+        onProgress?.('approving');
+
+        const approveHash = await writeContractAsync({
+          address: buyerUSDC.address,
+          abi: ERC20_ABI as any,
+          functionName: 'approve',
+          args: [tokenMessenger as Hex, amount],
+        });
+
+        // Wait for approval receipt (best-effort)
+        if (publicClient) {
+          try {
+            await publicClient.waitForTransactionReceipt({ hash: approveHash });
+          } catch {
+            // swallow waiting errors
+          }
+        }
+      }
+    } catch (approveErr: any) {
+      // Surface approval failure
+      return { success: false, message: `Approval failed: ${approveErr?.message || String(approveErr)}` };
+    }
+
     // notify UI that burn will be attempted
     console.debug('[performBuy] onProgress', 'burning');
     onProgress?.('burning');
