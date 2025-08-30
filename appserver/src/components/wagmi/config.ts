@@ -38,8 +38,12 @@ export const ERC20_ABI = [
   }
 ] as const;
 
-// CCTP ABI (includes both depositForBurn and depositForBurnWithCaller functions)
-export const CCTP_ABI = [
+/**
+ * TokenMessengerV2 ABI (CCTP V2)
+ * - depositForBurn
+ * - depositForBurnWithHook (preferred; replaces deprecated depositForBurnWithCaller)
+ */
+export const TOKEN_MESSENGER_ABI = [
   {
     inputs: [
       { internalType: "uint256", name: "amount", type: "uint256" },
@@ -58,10 +62,30 @@ export const CCTP_ABI = [
       { internalType: "uint32", name: "destinationDomain", type: "uint32" },
       { internalType: "bytes32", name: "mintRecipient", type: "bytes32" },
       { internalType: "address", name: "burnToken", type: "address" },
-      { internalType: "address", name: "destinationCaller", type: "address" }
+      { internalType: "bytes32", name: "destinationCaller", type: "bytes32" },
+      { internalType: "uint256", name: "maxFee", type: "uint256" },
+      { internalType: "uint32", name: "minFinalityThreshold", type: "uint32" },
+      { internalType: "bytes", name: "hookData", type: "bytes" }
     ],
-    name: "depositForBurnWithCaller",
+    name: "depositForBurnWithHook",
     outputs: [{ internalType: "uint64", name: "nonce", type: "uint64" }],
+    stateMutability: "nonpayable",
+    type: "function"
+  }
+] as const;
+
+/**
+ * MessageTransmitterV2 ABI (CCTP V2)
+ * - receiveMessage(bytes message, bytes attestation)
+ */
+export const MESSAGE_TRANSMITTER_ABI = [
+  {
+    inputs: [
+      { internalType: "bytes", name: "message", type: "bytes" },
+      { internalType: "bytes", name: "attestation", type: "bytes" }
+    ],
+    name: "receiveMessage",
+    outputs: [],
     stateMutability: "nonpayable",
     type: "function"
   }
@@ -86,11 +110,20 @@ export const USDC_CONTRACTS = [
   }
 ] as const;
 
-// CCTP V2 Contract Addresses (Testnet TokenMessenger contracts)
-export const CCTP_CONTRACTS = {
-  11155111: getAddress("0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA"), // Ethereum Sepolia CCTP
-  421614: getAddress("0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA"),    // Arbitrum Sepolia CCTP  
-  84532: getAddress("0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA")      // Base Sepolia CCTP
+/**
+ * CCTP V2 Contract Addresses (Testnet)
+ * TokenMessengerV2 (burn entrypoint) and MessageTransmitterV2 (receive on destination)
+ */
+export const TOKEN_MESSENGER_CONTRACTS = {
+  11155111: getAddress("0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA"), // Ethereum Sepolia
+  421614: getAddress("0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA"),   // Arbitrum Sepolia
+  84532: getAddress("0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA")     // Base Sepolia
+} as const;
+
+export const MESSAGE_TRANSMITTER_CONTRACTS = {
+  11155111: getAddress("0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275"), // Ethereum Sepolia
+  421614: getAddress("0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275"),   // Arbitrum Sepolia
+  84532: getAddress("0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275")     // Base Sepolia
 } as const;
 
 // Domain mapping for CCTP
@@ -108,4 +141,5 @@ export interface USDCContract {
 }
 
 export type ChainId = keyof typeof CHAIN_DOMAINS;
-export type CCTPContractAddresses = typeof CCTP_CONTRACTS;
+export type TokenMessengerAddresses = typeof TOKEN_MESSENGER_CONTRACTS;
+export type MessageTransmitterAddresses = typeof MESSAGE_TRANSMITTER_CONTRACTS;

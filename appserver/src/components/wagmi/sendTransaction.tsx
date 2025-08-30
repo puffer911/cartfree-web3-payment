@@ -1,7 +1,15 @@
 import { FormEvent, useState, useEffect } from "react";
 import { useWaitForTransactionReceipt, BaseError, useWriteContract, useAccount, useChainId } from "wagmi";
-import { Hex, parseUnits, encodePacked } from "viem";
-import { ERC20_ABI, USDC_CONTRACTS, CCTP_ABI, CCTP_CONTRACTS, CHAIN_DOMAINS } from "./config";
+import { Hex, parseUnits } from "viem";
+import {
+  ERC20_ABI,
+  USDC_CONTRACTS,
+  TOKEN_MESSENGER_ABI,
+  TOKEN_MESSENGER_CONTRACTS,
+  MESSAGE_TRANSMITTER_ABI,
+  MESSAGE_TRANSMITTER_CONTRACTS,
+  CHAIN_DOMAINS,
+} from "./config";
 
 interface SendTransactionProps {
   onTransferComplete?: (hash: string) => void;
@@ -13,7 +21,9 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
   // Hardcode destination to Base (chainId 84532)
   const destinationChain = "84532";
   const [txHash, setTxHash] = useState<Hex | undefined>();
-  const [transferStep, setTransferStep] = useState<'idle' | 'approving' | 'burning' | 'completed'>('idle');
+  const [transferStep, setTransferStep] = useState<
+    'idle' | 'approving' | 'burning' | 'polling' | 'finalizing' | 'completed'
+  >('idle');
   
   const { writeContractAsync, isPending: isContractPending, error } = useWriteContract();
 
@@ -25,7 +35,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
   // Reset transfer step when transaction is confirmed
   useEffect(() => {
     if (isConfirmed && transferStep !== 'idle') {
-      if (transferStep === 'burning') {
+      if (transferStep === 'finalizing') {
         setTransferStep('completed');
         if (onTransferComplete && txHash) {
           onTransferComplete(txHash);
@@ -78,9 +88,9 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         return;
       }
 
-      const cctpContract = CCTP_CONTRACTS[currentChainId as keyof typeof CCTP_CONTRACTS];
-      if (!cctpContract) {
-        alert('CCTP not supported on this network');
+      const tokenMessenger = TOKEN_MESSENGER_CONTRACTS[currentChainId as keyof typeof TOKEN_MESSENGER_CONTRACTS];
+      if (!tokenMessenger) {
+        alert('CCTP TokenMessenger not supported on this network');
         return;
       }
 
@@ -91,7 +101,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
           address: currentUSDCContract.address,
           abi: ERC20_ABI,
           functionName: 'approve',
-          args: [cctpContract, parseUnits(value, 6)],
+          args: [tokenMessenger, parseUnits(value, 6)],
           value: 0n
         });
         
@@ -100,46 +110,85 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         // Wait a moment for the approval to be processed
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Step 2: Try CCTP depositForBurnWithCaller, fallback to depositForBurn
+        // Step 2: CCTP depositForBurnWithHook (CCTP V2)
         setTransferStep('burning');
-        // Convert address to bytes32 by padding with zeros
-        const mintRecipientBytes32 = `0x${to.replace('0x', '').padStart(64, '0')}` as Hex;
-        
-        let burnHash;
-        
-        try {
-          // First try depositForBurnWithCaller for hook functionality
-          burnHash = await writeContractAsync({
-            address: cctpContract,
-            abi: CCTP_ABI,
-            functionName: 'depositForBurnWithCaller',
-            args: [
-              parseUnits(value, 6),
-              destinationDomain,
-              mintRecipientBytes32,
-              currentUSDCContract.address,
-              "0xdeDB591e1a23A5A691E0d00Da99e0506A2F00468" // Hook contract address
-            ]
-          });
-        } catch (hookError) {
-          console.log('depositForBurnWithCaller failed, trying regular depositForBurn:', hookError);
-          
-          // Fallback to regular depositForBurn if hook version fails
-          // burnHash = await writeContractAsync({
-          //   address: cctpContract,
-          //   abi: CCTP_ABI,
-          //   functionName: 'depositForBurn',
-          //   args: [
-          //     parseUnits(value, 6),
-          //     destinationDomain,
-          //     mintRecipientBytes32,
-          //     currentUSDCContract.address
-          //   ]
-          // });
-        }
-        
+
+        // Convert EVM address to bytes32 (left-pad with zeros)
+        const toBytes32 = (addr: string) => `0x${addr.replace(/^0x/, '').padStart(64, '0')}` as Hex;
+
+        const mintRecipientBytes32 = toBytes32(to);
+        // Destination hook contract address (on destination chain). Replace with your deployed CCTPAutoReceiver address.
+        const hookContractOnDest = "0xdeDB591e1a23A5A691E0d00Da99e0506A2F00468";
+        const destinationCallerBytes32 = toBytes32(hookContractOnDest);
+
+        const amount = parseUnits(value, 6);
+        // Max fee cap (in USDC units). For Standard Transfer, set a conservative cap; actual charged fee will be <= this.
+        const maxFee = amount; // cap at 100% of amount to avoid onchain revert; tune down by querying /v2/burn/USDC/fees
+
+        // Standard Transfer (fully finalized)
+        const minFinalityThreshold = 2000;
+
+        // Optional hookData payload (empty by default)
+        const hookData = '0x';
+
+        const burnHash = await writeContractAsync({
+          address: tokenMessenger,
+          abi: TOKEN_MESSENGER_ABI,
+          functionName: 'depositForBurnWithHook',
+          args: [
+            amount,
+            destinationDomain,
+            mintRecipientBytes32,
+            currentUSDCContract.address,
+            destinationCallerBytes32,
+            maxFee,
+            minFinalityThreshold,
+            hookData
+          ]
+        });
+
         console.log('Burn transaction:', burnHash);
         setTxHash(burnHash);
+
+        // Step 3: Poll Iris API for attestation
+        setTransferStep('polling');
+
+        const pollForAttestation = async (txHash: Hex) => {
+          const apiUrl = `https://iris-api-sandbox.circle.com/v2/messages?transactionHash=${txHash}`;
+          // Poll until the attestation is ready
+          while (true) {
+            const resp = await fetch(apiUrl);
+            if (!resp.ok) throw new Error(`Iris API error ${resp.status}`);
+            const data = await resp.json();
+            if (data?.messages?.length > 0 && data.messages[0]?.attestation && data.messages[0]?.message) {
+              return { message: data.messages[0].message as Hex, attestation: data.messages[0].attestation as Hex };
+            }
+            await new Promise(res => setTimeout(res, 3000));
+          }
+        };
+
+        const { message, attestation } = await pollForAttestation(burnHash);
+
+        // Step 4: Deliver message on destination chain
+        setTransferStep('finalizing');
+
+        const mtOnDestination = MESSAGE_TRANSMITTER_CONTRACTS[destinationChainId as keyof typeof MESSAGE_TRANSMITTER_CONTRACTS];
+
+        if (!mtOnDestination) {
+          throw new Error('MessageTransmitter not configured for destination chain');
+        }
+
+        const receiveHash = await writeContractAsync({
+          address: mtOnDestination,
+          abi: MESSAGE_TRANSMITTER_ABI,
+          functionName: 'receiveMessage',
+          args: [message, attestation],
+          // Ensure transaction is sent on destination chain (wallet will prompt to switch if needed)
+          chainId: destinationChainId
+        });
+
+        console.log('Receive message transaction:', receiveHash);
+        setTxHash(receiveHash);
         
       } catch (error) {
         console.error('CCTP transfer failed:', error);
@@ -188,11 +237,17 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
       {/* Transfer step indicators */}
       {transferStep !== 'idle' && (
         <div className="transfer-steps">
-          <div className={`step ${transferStep === 'approving' ? 'active' : transferStep === 'burning' || transferStep === 'completed' ? 'completed' : ''}`}>
+          <div className={`step ${transferStep === 'approving' ? 'active' : ['burning','polling','finalizing','completed'].includes(transferStep) ? 'completed' : ''}`}>
             Step 1: Approving USDC
           </div>
-          <div className={`step ${transferStep === 'burning' ? 'active' : transferStep === 'completed' ? 'completed' : ''}`}>
+          <div className={`step ${transferStep === 'burning' ? 'active' : ['polling','finalizing','completed'].includes(transferStep) ? 'completed' : ''}`}>
             Step 2: Cross-chain burn
+          </div>
+          <div className={`step ${transferStep === 'polling' ? 'active' : ['finalizing','completed'].includes(transferStep) ? 'completed' : ''}`}>
+            Step 3: Waiting for attestation
+          </div>
+          <div className={`step ${transferStep === 'finalizing' ? 'active' : transferStep === 'completed' ? 'completed' : ''}`}>
+            Step 4: Finalize on destination
           </div>
         </div>
       )}
