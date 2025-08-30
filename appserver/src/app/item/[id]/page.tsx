@@ -2,9 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { useAccount } from "wagmi";
+import { useAccount, useChainId, usePublicClient, useWriteContract } from "wagmi";
+import { Hex, parseUnits, encodeAbiParameters } from "viem";
 import { DashboardLayout } from "../../../components/DashboardLayout";
 import { ItemCard } from "../../../components/ItemCard";
+import {
+  ERC20_ABI,
+  USDC_CONTRACTS,
+  TOKEN_MESSENGER_ABI,
+  TOKEN_MESSENGER_CONTRACTS,
+  HOOK_EXECUTOR_CONTRACTS,
+  CHAIN_DOMAINS,
+} from "../../../components/wagmi/config";
+import { performBuy } from '../../../lib/performBuy';
 import '../../../components/App.css';
 
 interface ItemDetail {
@@ -55,36 +65,32 @@ export default function ItemDetailPage() {
     }
   }, [itemId]);
 
-  const handleBuyItem = async () => {
-    if (!item || !address) {
-      setBuyMessage('Please connect your wallet to make a purchase');
-      return;
-    }
+  const chainId = useChainId();
+  const publicClient = usePublicClient();
+  const { writeContractAsync } = useWriteContract();
 
+  const handleBuyItem = async (itemArg?: any) => {
+    // Reuse shared performBuy helper (same behavior as marketplace tabs)
+    // Accept optional itemArg so this function can be used as a callback from ItemCard (which passes the item)
     setBuyLoading(true);
     setBuyMessage(null);
 
+    const targetItem = itemArg ?? item;
+
     try {
-      const response = await fetch('/api/marketplace/buy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          walletAddress: address,
-          listingId: item.id,
-          amount: item.price,
-          sourceChain: 'base-sepolia'
-        }),
+      const result = await performBuy({
+        item: targetItem,
+        buyerAddress: address as string,
+        chainId: chainId as number | undefined,
+        publicClient,
+        writeContractAsync
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to purchase item');
+      if (!result.success) {
+        throw new Error(result.message);
       }
 
-      setBuyMessage('Purchase successful! Item added to your orders.');
+      setBuyMessage(result.message);
     } catch (err) {
       console.error('Error purchasing item:', err);
       setBuyMessage(err instanceof Error ? err.message : 'Failed to purchase item');

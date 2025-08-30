@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ItemCard } from './ItemCard';
 import { OrderCard } from './OrderCard';
+import { useChainId, usePublicClient, useWriteContract } from 'wagmi';
+import { performBuy } from '../lib/performBuy';
+import { Hex } from 'viem';
+import {
+  USDC_CONTRACTS
+} from './wagmi/config';
 
 interface MarketplaceTabsProps {
   userAddress?: string;
@@ -97,6 +103,10 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
     setActiveTab(tab);
   };
 
+  const chainId = useChainId();
+  const publicClient = usePublicClient();
+  const { writeContractAsync } = useWriteContract();
+
   const handleBuyItem = async (item: any) => {
     if (!userAddress) {
       setBuyMessage('Please connect your wallet to make a purchase');
@@ -107,27 +117,24 @@ export const MarketplaceTabs: React.FC<MarketplaceTabsProps> = ({ userAddress })
     setBuyMessage(null);
 
     try {
-      const response = await fetch('/api/marketplace/buy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          walletAddress: userAddress,
-          listingId: item.id,
-          amount: item.price,
-          sourceChain: 'base-sepolia' // Hardcoded as per requirements
-        }),
+      // Reuse shared performBuy helper which implements hybrid settlement
+      const result = await performBuy({
+        item,
+        buyerAddress: userAddress,
+        chainId: chainId as number | undefined,
+        publicClient,
+        writeContractAsync
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to purchase item');
+      if (!result.success) {
+        throw new Error(result.message);
       }
 
-      setBuyMessage('Purchase successful! Item added to your orders.');
-      // Refresh the buying orders tab
+      setBuyMessage(result.message);
+      // Refresh the sale/buying tab data where relevant
+      if (activeTab === 'sale') {
+        fetchData('sale');
+      }
       if (activeTab === 'buying') {
         fetchData('buying');
       }

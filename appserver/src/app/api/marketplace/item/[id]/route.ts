@@ -18,11 +18,15 @@ export async function GET(
       );
     }
 
-    // Fetch the item with seller information
+    // Fetch the item with seller information (join seller via seller_id)
     const { data: item, error } = await supabase
       .from('listings')
       .select(`
-        *
+        *,
+        seller:seller_id(
+          id,
+          wallet_address
+        )
       `)
       .eq('id', id)
       .single();

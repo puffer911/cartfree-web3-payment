@@ -51,9 +51,7 @@ export const BlockchainActions: React.FC<BlockchainActionsProps> = ({ isConnecte
       </div>
       <Balance key={`${selectedChainId}-${refreshTrigger}`} /> {/* Key to force re-render */}
       
-      <div className="send-transaction-section">
-        <SendTransaction />
-      </div>
+      {/* Send transaction UI hidden for buyers - removed per product decision */}
     </div>
   );
 };

@@ -39,6 +39,8 @@ export const ItemCard: React.FC<ItemCardProps> = ({
   };
 
   const handleBuyClick = (e: React.MouseEvent) => {
+    // Prevent anchor navigation when clicking the Buy button and stop bubbling
+    e.preventDefault();
     e.stopPropagation();
     if (onBuyItem && !isOwnItem) {
       onBuyItem(item);
@@ -63,6 +65,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
         </div>
         {showBuyButton && !isOwnItem && onBuyItem && (
           <button
+            type="button"
             className="buy-btn"
             onClick={handleBuyClick}
             disabled={buyLoading}
