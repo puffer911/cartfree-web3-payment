@@ -31,11 +31,35 @@ export const ERC20_ABI = [
   },
   {
     constant: true,
+    inputs: [
+      { name: "_owner", type: "address" },
+      { name: "_spender", type: "address" }
+    ],
+    name: "allowance",
+    outputs: [{ name: "", type: "uint256" }],
+    type: "function"
+  },
+  {
+    constant: true,
     inputs: [],
     name: "decimals",
     outputs: [{ name: "", type: "uint8" }],
     type: "function"
   }
+] as const;
+
+/**
+ * Hook Executor ABI
+ * - executeHook(bytes hookData)
+ */
+export const HOOK_EXECUTOR_ABI = [
+  {
+    inputs: [{ internalType: "bytes", name: "hookData", type: "bytes" }],
+    name: "executeHook",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
 ] as const;
 
 /**
@@ -52,7 +76,7 @@ export const TOKEN_MESSENGER_ABI = [
       { internalType: "address", name: "burnToken", type: "address" }
     ],
     name: "depositForBurn",
-    outputs: [{ internalType: "uint64", name: "nonce", type: "uint64" }],
+    outputs: [],
     stateMutability: "nonpayable",
     type: "function"
   },
@@ -68,8 +92,15 @@ export const TOKEN_MESSENGER_ABI = [
       { internalType: "bytes", name: "hookData", type: "bytes" }
     ],
     name: "depositForBurnWithHook",
-    outputs: [{ internalType: "uint64", name: "nonce", type: "uint64" }],
+    outputs: [],
     stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "amount", type: "uint256" }],
+    name: "getMinFeeAmount",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
     type: "function"
   }
 ] as const;
@@ -126,6 +157,16 @@ export const MESSAGE_TRANSMITTER_CONTRACTS = {
   84532: getAddress("0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275")     // Base Sepolia
 } as const;
 
+/**
+ * Destination Hook Executor contracts (deployed per destination chain)
+ * NOTE: Replace 0xdeDB... with your deployed executor address on each chain.
+ */
+export const HOOK_EXECUTOR_CONTRACTS = {
+  84532: getAddress("0x8AE4bb6B48C211072D3DEe6Cd9734a906450623C"), // Base Sepolia
+  // 421614: getAddress("0xdeDB591e1a23A5A691E0d00Da99e0506A2F00468"), // Arbitrum Sepolia (placeholder)
+  // 11155111: getAddress("0xdeDB591e1a23A5A691E0d00Da99e0506A2F00468"), // Ethereum Sepolia (placeholder)
+} as const;
+
 // Domain mapping for CCTP
 export const CHAIN_DOMAINS = {
   11155111: 0, // Ethereum
@@ -143,3 +184,4 @@ export interface USDCContract {
 export type ChainId = keyof typeof CHAIN_DOMAINS;
 export type TokenMessengerAddresses = typeof TOKEN_MESSENGER_CONTRACTS;
 export type MessageTransmitterAddresses = typeof MESSAGE_TRANSMITTER_CONTRACTS;
+export type HookExecutorAddresses = typeof HOOK_EXECUTOR_CONTRACTS;

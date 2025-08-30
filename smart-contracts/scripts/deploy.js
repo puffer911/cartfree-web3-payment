@@ -1,58 +1,42 @@
 const { ethers } = require("hardhat");
 
 async function main() {
-  console.log("Starting CCTP Auto Receiver deployment...");
+  console.log("Starting DestinationHookExecutor deployment...");
+
+  // Default USDC for Base Sepolia; override with DEST_USDC_ADDRESS if needed
+  const DEFAULT_USDC_BASE_SEPOLIA = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  const usdcAddress = process.env.DEST_USDC_ADDRESS || DEFAULT_USDC_BASE_SEPOLIA;
 
   // Get the deployer account
   const [deployer] = await ethers.getSigners();
   console.log("Deploying contracts with the account:", deployer.address);
   console.log("Account balance:", (await deployer.provider.getBalance(deployer.address)).toString());
+  console.log("Using USDC address:", usdcAddress);
 
-  // Deploy CCTPAutoReceiver
-  console.log("\nDeploying CCTPAutoReceiver...");
-  const CCTPAutoReceiver = await ethers.getContractFactory("CCTPAutoReceiver");
-  
-  // Deploy with minimal gas settings for testnet
-  const autoReceiver = await CCTPAutoReceiver.deploy({
+  // Deploy DestinationHookExecutor
+  console.log("\nDeploying DestinationHookExecutor...");
+  const DestinationHookExecutor = await ethers.getContractFactory("DestinationHookExecutor");
+
+  // Constructor: (owner, usdc)
+  const hookExecutor = await DestinationHookExecutor.deploy(deployer.address, usdcAddress, {
     gasLimit: 3000000,
   });
 
-  await autoReceiver.waitForDeployment();
-  const autoReceiverAddress = await autoReceiver.getAddress();
+  await hookExecutor.waitForDeployment();
+  const hookExecutorAddress = await hookExecutor.getAddress();
 
-  console.log("CCTPAutoReceiver deployed to:", autoReceiverAddress);
-  
-  // Fund the contract with some ETH for gas
-  console.log("\nFunding contract with ETH for automatic processing...");
-  const fundingAmount = ethers.parseEther("0.1"); // 0.1 ETH
-  
-  const fundTx = await deployer.sendTransaction({
-    to: autoReceiverAddress,
-    value: fundingAmount,
-    gasLimit: 21000
-  });
-  
-  await fundTx.wait();
-  console.log(`Funded contract with ${ethers.formatEther(fundingAmount)} ETH`);
-
-  // Get contract status
-  const status = await autoReceiver.getStatus();
-  console.log("\nContract Status:");
-  console.log("- Balance:", ethers.formatEther(status[0]), "ETH");
-  console.log("- Gas Limit:", status[1].toString());
-  console.log("- Min Gas Reserve:", ethers.formatEther(status[2]), "ETH");
-  console.log("- Is Paused:", status[3]);
+  console.log("DestinationHookExecutor deployed to:", hookExecutorAddress);
 
   // Save deployment info
   const deploymentInfo = {
     network: network.name,
-    contractAddress: autoReceiverAddress,
+    contract: "DestinationHookExecutor",
+    contractAddress: hookExecutorAddress,
     deployerAddress: deployer.address,
     blockNumber: await ethers.provider.getBlockNumber(),
     timestamp: new Date().toISOString(),
-    txHash: autoReceiver.deploymentTransaction()?.hash,
-    constructorArgs: [],
-    contractBalance: ethers.formatEther(status[0]),
+    txHash: hookExecutor.deploymentTransaction()?.hash,
+    constructorArgs: [deployer.address, usdcAddress],
   };
 
   console.log("\nDeployment Summary:");
@@ -62,13 +46,15 @@ async function main() {
   console.log("\n" + "=".repeat(60));
   console.log("DEPLOYMENT COMPLETE!");
   console.log("=".repeat(60));
-  console.log(`Contract Address: ${autoReceiverAddress}`);
+  console.log(`Contract Address: ${hookExecutorAddress}`);
   console.log("\nNext Steps:");
-  console.log("1. Verify the contract on Basescan:");
-  console.log(`   npx hardhat verify --network baseSepolia ${autoReceiverAddress}`);
-  console.log("\n2. Update your frontend with the new contract address");
-  console.log("\n3. Test cross-chain transfers from Ethereum/Arbitrum to Base");
-  console.log("\n4. Monitor contract events and gas usage");
+  console.log("1. Verify the contract on Basescan (constructor args: owner, usdc):");
+  console.log(`   npx hardhat verify --network baseSepolia ${hookExecutorAddress} ${deployer.address} ${usdcAddress}`);
+  console.log("\n2. Update your frontend HOOK_EXECUTOR_CONTRACTS mapping with the new address");
+  console.log("\n3. Ensure TokenMessengerV2 depositForBurnWithHook uses:");
+  console.log("   - mintRecipient = bytes32(leftPad(hookExecutorAddress))");
+  console.log("   - destinationCaller = bytes32(leftPad(hookExecutorAddress))");
+  console.log("\n4. After MessageTransmitterV2.receiveMessage on destination, call executeHook(hookData)");
   console.log("=".repeat(60));
 
   return deploymentInfo;

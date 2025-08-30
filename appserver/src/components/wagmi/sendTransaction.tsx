@@ -1,6 +1,6 @@
 import { FormEvent, useState, useEffect } from "react";
-import { useWaitForTransactionReceipt, BaseError, useWriteContract, useAccount, useChainId } from "wagmi";
-import { Hex, parseUnits } from "viem";
+import { useWaitForTransactionReceipt, BaseError, useWriteContract, useAccount, useChainId, usePublicClient, useSwitchChain } from "wagmi";
+import { Hex, parseUnits, encodeAbiParameters } from "viem";
 import {
   ERC20_ABI,
   USDC_CONTRACTS,
@@ -9,6 +9,8 @@ import {
   MESSAGE_TRANSMITTER_ABI,
   MESSAGE_TRANSMITTER_CONTRACTS,
   CHAIN_DOMAINS,
+  HOOK_EXECUTOR_ABI,
+  HOOK_EXECUTOR_CONTRACTS,
 } from "./config";
 
 interface SendTransactionProps {
@@ -18,11 +20,13 @@ interface SendTransactionProps {
 export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
   const { address } = useAccount();
   const currentChainId = useChainId();
+  const publicClient = usePublicClient();
+  const { switchChainAsync } = useSwitchChain();
   // Hardcode destination to Base (chainId 84532)
   const destinationChain = "84532";
   const [txHash, setTxHash] = useState<Hex | undefined>();
   const [transferStep, setTransferStep] = useState<
-    'idle' | 'approving' | 'burning' | 'polling' | 'finalizing' | 'completed'
+    'idle' | 'approving' | 'burning' | 'polling' | 'finalizing' | 'executing' | 'completed'
   >('idle');
   
   const { writeContractAsync, isPending: isContractPending, error } = useWriteContract();
@@ -35,7 +39,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
   // Reset transfer step when transaction is confirmed
   useEffect(() => {
     if (isConfirmed && transferStep !== 'idle') {
-      if (transferStep === 'finalizing') {
+      if (transferStep === 'finalizing' || transferStep === 'executing') {
         setTransferStep('completed');
         if (onTransferComplete && txHash) {
           onTransferComplete(txHash);
@@ -93,22 +97,44 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         alert('CCTP TokenMessenger not supported on this network');
         return;
       }
+      if (!publicClient) {
+        alert('RPC client not available for current chain');
+        return;
+      }
+      const hookExecutorOnDest = HOOK_EXECUTOR_CONTRACTS[destinationChainId as keyof typeof HOOK_EXECUTOR_CONTRACTS];
+      if (!hookExecutorOnDest) {
+        alert('Hook executor not configured for destination chain');
+        return;
+      }
 
       try {
-        // Step 1: Approve USDC for CCTP contract to spend tokens
-        setTransferStep('approving');
-        const approveHash = await writeContractAsync({
+        // Precompute amount and ensure wallet connected
+        const amount = parseUnits(value, 6);
+        if (!address) {
+          alert('Connect your wallet first');
+          return;
+        }
+
+        // Step 1: Ensure allowance (only approve if needed)
+        const currentAllowance = (await publicClient.readContract({
           address: currentUSDCContract.address,
           abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [tokenMessenger, parseUnits(value, 6)],
-          value: 0n
-        });
-        
-        console.log('Approval transaction:', approveHash);
-        
-        // Wait a moment for the approval to be processed
-        await new Promise(resolve => setTimeout(resolve, 2000));
+          functionName: 'allowance',
+          args: [address, tokenMessenger]
+        })) as bigint;
+        if (currentAllowance < amount) {
+          setTransferStep('approving');
+          const approveSim = await publicClient.simulateContract({
+            account: address,
+            address: currentUSDCContract.address,
+            abi: ERC20_ABI,
+            functionName: 'approve',
+            args: [tokenMessenger, amount]
+          });
+          const approveHash = await writeContractAsync(approveSim.request);
+          console.log('Approval transaction:', approveHash);
+          await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        }
 
         // Step 2: CCTP depositForBurnWithHook (CCTP V2)
         setTransferStep('burning');
@@ -116,22 +142,39 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         // Convert EVM address to bytes32 (left-pad with zeros)
         const toBytes32 = (addr: string) => `0x${addr.replace(/^0x/, '').padStart(64, '0')}` as Hex;
 
-        const mintRecipientBytes32 = toBytes32(to);
-        // Destination hook contract address (on destination chain). Replace with your deployed CCTPAutoReceiver address.
-        const hookContractOnDest = "0xdeDB591e1a23A5A691E0d00Da99e0506A2F00468";
-        const destinationCallerBytes32 = toBytes32(hookContractOnDest);
+        // Mint to the hook executor on the destination chain
+        const mintRecipientBytes32 = toBytes32(hookExecutorOnDest);
+        const destinationCallerBytes32 = ('0x' + '0'.repeat(64)) as Hex;
 
-        const amount = parseUnits(value, 6);
-        // Max fee cap (in USDC units). For Standard Transfer, set a conservative cap; actual charged fee will be <= this.
-        const maxFee = amount; // cap at 100% of amount to avoid onchain revert; tune down by querying /v2/burn/USDC/fees
+        // Compute a sane maxFee: try on-chain min fee with +10% buffer; fallback to ~1 bps if not supported
+        let maxFee: bigint;
+        try {
+          const minFeeAmount = await publicClient.readContract({
+            address: tokenMessenger,
+            abi: TOKEN_MESSENGER_ABI,
+            functionName: "getMinFeeAmount",
+            args: [amount]
+          });
+          // buffer by +10%
+          maxFee = (minFeeAmount * 110n) / 100n;
+        } catch {
+          // fallback: 1 bps + 1 wei of USDC units
+          maxFee = amount / 10000n + 1n;
+          if (maxFee === 0n) maxFee = 1n;
+        }
 
         // Standard Transfer (fully finalized)
         const minFinalityThreshold = 2000;
 
-        // Optional hookData payload (empty by default)
-        const hookData = '0x';
+        // ABI-encode hookData: (final recipient, amount)
+        const hookData = encodeAbiParameters(
+          [{ type: 'address' }, { type: 'uint256' }],
+          [to, amount]
+        );
 
-        const burnHash = await writeContractAsync({
+        // Simulate burn for accurate gas, then send
+        const burnSim = await publicClient.simulateContract({
+          account: address,
           address: tokenMessenger,
           abi: TOKEN_MESSENGER_ABI,
           functionName: 'depositForBurnWithHook',
@@ -146,6 +189,7 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
             hookData
           ]
         });
+        const burnHash = await writeContractAsync(burnSim.request);
 
         console.log('Burn transaction:', burnHash);
         setTxHash(burnHash);
@@ -154,14 +198,30 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
         setTransferStep('polling');
 
         const pollForAttestation = async (txHash: Hex) => {
-          const apiUrl = `https://iris-api-sandbox.circle.com/v2/messages?transactionHash=${txHash}`;
-          // Poll until the attestation is ready
+          const sourceDomain = CHAIN_DOMAINS[currentChainId as keyof typeof CHAIN_DOMAINS];
+          const apiUrl = `https://iris-api-sandbox.circle.com/v2/messages/${sourceDomain}?transactionHash=${txHash}`;
+          // Poll the correct domain-scoped endpoint until the attestation is ready
           while (true) {
             const resp = await fetch(apiUrl);
+            if (resp.status === 404) {
+              // Not indexed yet — keep polling
+              await new Promise(res => setTimeout(res, 3000));
+              continue;
+            }
             if (!resp.ok) throw new Error(`Iris API error ${resp.status}`);
             const data = await resp.json();
-            if (data?.messages?.length > 0 && data.messages[0]?.attestation && data.messages[0]?.message) {
-              return { message: data.messages[0].message as Hex, attestation: data.messages[0].attestation as Hex };
+            // Require Iris to return hex-encoded values. Ignore PENDING/non-hex placeholders.
+            const m = data?.messages?.[0];
+            if (
+              m &&
+              typeof m.attestation === 'string' &&
+              typeof m.message === 'string' &&
+              m.attestation.startsWith('0x') &&
+              m.message.startsWith('0x') &&
+              m.attestation.length > 2 &&
+              m.message.length > 2
+            ) {
+              return { message: m.message as Hex, attestation: m.attestation as Hex };
             }
             await new Promise(res => setTimeout(res, 3000));
           }
@@ -171,6 +231,15 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
 
         // Step 4: Deliver message on destination chain
         setTransferStep('finalizing');
+
+        // Ensure wallet is on destination chain before sending the destination tx
+        try {
+          if (switchChainAsync) {
+            await switchChainAsync({ chainId: destinationChainId });
+          }
+        } catch (e) {
+          throw new Error(`Please switch your wallet to the destination chain (chainId ${destinationChainId}) to finalize: ${e instanceof Error ? e.message : String(e)}`);
+        }
 
         const mtOnDestination = MESSAGE_TRANSMITTER_CONTRACTS[destinationChainId as keyof typeof MESSAGE_TRANSMITTER_CONTRACTS];
 
@@ -189,6 +258,20 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
 
         console.log('Receive message transaction:', receiveHash);
         setTxHash(receiveHash);
+
+        // Step 5: Execute hook on destination to forward funds to final recipient
+        setTransferStep('executing');
+
+        const execHash = await writeContractAsync({
+          address: hookExecutorOnDest,
+          abi: HOOK_EXECUTOR_ABI,
+          functionName: 'executeHook',
+          args: [hookData],
+          chainId: destinationChainId
+        });
+
+        console.log('Execute hook transaction:', execHash);
+        setTxHash(execHash);
         
       } catch (error) {
         console.error('CCTP transfer failed:', error);
@@ -237,17 +320,20 @@ export function SendTransaction({ onTransferComplete }: SendTransactionProps) {
       {/* Transfer step indicators */}
       {transferStep !== 'idle' && (
         <div className="transfer-steps">
-          <div className={`step ${transferStep === 'approving' ? 'active' : ['burning','polling','finalizing','completed'].includes(transferStep) ? 'completed' : ''}`}>
+          <div className={`step ${transferStep === 'approving' ? 'active' : ['burning','polling','finalizing','executing','completed'].includes(transferStep) ? 'completed' : ''}`}>
             Step 1: Approving USDC
           </div>
-          <div className={`step ${transferStep === 'burning' ? 'active' : ['polling','finalizing','completed'].includes(transferStep) ? 'completed' : ''}`}>
+          <div className={`step ${transferStep === 'burning' ? 'active' : ['polling','finalizing','executing','completed'].includes(transferStep) ? 'completed' : ''}`}>
             Step 2: Cross-chain burn
           </div>
-          <div className={`step ${transferStep === 'polling' ? 'active' : ['finalizing','completed'].includes(transferStep) ? 'completed' : ''}`}>
+          <div className={`step ${transferStep === 'polling' ? 'active' : ['finalizing','executing','completed'].includes(transferStep) ? 'completed' : ''}`}>
             Step 3: Waiting for attestation
           </div>
-          <div className={`step ${transferStep === 'finalizing' ? 'active' : transferStep === 'completed' ? 'completed' : ''}`}>
+          <div className={`step ${transferStep === 'finalizing' ? 'active' : ['executing','completed'].includes(transferStep) ? 'completed' : ''}`}>
             Step 4: Finalize on destination
+          </div>
+          <div className={`step ${transferStep === 'executing' ? 'active' : transferStep === 'completed' ? 'completed' : ''}`}>
+            Step 5: Execute hook
           </div>
         </div>
       )}
