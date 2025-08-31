@@ -104,24 +104,12 @@ export const ItemCard: React.FC<ItemCardProps> = ({
             </div>
           )}
         </div>
-        <div className="item-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 15, position: 'relative', zIndex: 1, minWidth: 0 }}>
-          <div style={{ position: 'relative' }}>
+        <div className="item-actions">
+          <div className="share-container">
             <button
               onClick={toggleShareMenu}
               aria-label="Share"
-              style={{
-                background: '#f3f4f6',
-                borderRadius: 8,
-                padding: 6,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 36,
-                height: 36,
-                border: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-              }}
+              className="share-btn"
               title="Share"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -133,10 +121,10 @@ export const ItemCard: React.FC<ItemCardProps> = ({
               </svg>
             </button>
             {showShareMenu && (
-              <div className="share-menu" style={{ position: 'absolute', right: 0, top: '44px', background: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,0.08)', borderRadius: 8, padding: 4, zIndex: 1000, minWidth: 160 }}>
-                <button onClick={handleCopyLink} style={{ display: 'block', width: '100%', padding: '8px 10px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>{copied ? 'Link copied' : 'Copy link'}</button>
-                <button onClick={handleShareX} style={{ display: 'block', width: '100%', padding: '8px 10px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>Share to X</button>
-                <button onClick={handleShareWhatsApp} style={{ display: 'block', width: '100%', padding: '8px 10px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>Share to WhatsApp</button>
+              <div className="share-menu share-menu-front">
+                <button onClick={handleCopyLink} className="share-item">{copied ? 'Link copied' : 'Copy link'}</button>
+                <button onClick={handleShareX} className="share-item">Share to X</button>
+                <button onClick={handleShareWhatsApp} className="share-item">Share to WhatsApp</button>
               </div>
             )}
           </div>
@@ -145,7 +133,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
               onClick={handleBuyClick}
               loading={buyLoading}
               label={buyLabel ?? undefined}
-              style={{ marginTop: '0px' }}
+              className="buy-now"
             />
           )}
         </div>

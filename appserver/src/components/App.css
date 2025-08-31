@@ -543,6 +543,87 @@ ul li:before {
 }
 
 /* Item and Order Cards */
+/* Share / Item actions styles moved from inline to CSS */
+.item-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 15px;
+  position: relative;
+  min-width: 0;
+}
+
+/* Container for the share button */
+.share-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Compact share icon button */
+.share-btn {
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* Hover state for share button */
+.share-btn:hover {
+  background: #e9eef2;
+}
+
+/* Share menu - default positioned below the button */
+.share-menu {
+  position: absolute;
+  right: 0;
+  top: 44px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  border-radius: 8px;
+  padding: 4px;
+  z-index: 2000;
+  min-width: 160px;
+  overflow: hidden;
+}
+
+/* Variant to show the menu in front (above) the item card if needed */
+.share-menu-front {
+  top: auto;
+  bottom: 44px;
+  left: 20px;
+  z-index: 2500;
+}
+
+/* Individual share menu item */
+.share-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+  color: #2d3436;
+}
+
+.share-item:hover {
+  background: rgba(9,132,227,0.06);
+}
+
+/* Allow customizing buy button area if required */
+.buy-now {
+  margin-top: 0px;
+}
+
+/* End of share styles */
 .items-list, .orders-list {
   display: flex;
   flex-direction: column;
