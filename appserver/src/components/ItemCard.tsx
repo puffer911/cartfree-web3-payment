@@ -133,7 +133,6 @@ export const ItemCard: React.FC<ItemCardProps> = ({
               onClick={handleBuyClick}
               loading={buyLoading}
               label={buyLabel ?? undefined}
-              className="buy-now"
             />
           )}
         </div>

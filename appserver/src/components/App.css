@@ -597,7 +597,7 @@ ul li:before {
 .share-menu-front {
   top: auto;
   bottom: 44px;
-  left: 20px;
+  left: 0px;
   z-index: 2500;
 }
 
@@ -616,11 +616,6 @@ ul li:before {
 
 .share-item:hover {
   background: rgba(9,132,227,0.06);
-}
-
-/* Allow customizing buy button area if required */
-.buy-now {
-  margin-top: 0px;
 }
 
 /* End of share styles */
@@ -768,6 +763,7 @@ ul li:before {
   margin-top: 40px;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
+  margin-top: 0px;
 }
 
 .buy-btn:hover:not(:disabled) {
