@@ -1,11 +1,14 @@
 # Cartfree - Connect, Pay, Done.
 
-Cartfree is a marketplace and multichain USDC payment platform that utilizes Fast Transfers using CCTP v2. It includes a web frontend, backend APIs, and smart‑contract hooks to finalize cross‑chain USDC flows. Cartfree is being developed as a production‑grade project with strategic utilization.
+![Cartfree logo](appserver/public/cartfree.png)
+![Architecture diagram](diagram.png)
+
+Cartfree is a marketplace and multichain USDC payment platform that utilizes Fast Cross Chain Transfers using CCTP v2 for real world utilization and low-friction adoption. Cartfree is being developed as a production‑grade project.
 
 ## Quick summary
 - Purpose: Accept and finalize USDC payments across multiple EVM chains using CCTP v2 fast transfers and hooks; target real‑world stablecoin adoption with a smooth, consumer‑friendly experience.
 - Tech: Next.js (app router) frontend, viem/wagmi for on‑chain interactions, Supabase for persistence, Solidity smart contracts developed with Hardhat, and a set of server APIs to orchestrate CCTP finalization flows.
-- UX & settlement model: Sellers receive consolidated settlement on the Base network (via the deployed Hook Executor) while buyers can originate payments from Ethereum, Arbitrum, Base or other CCTP‑supported chains. Users can onboard either via SSO (e.g., Google) for a familiar, low‑friction flow or using non‑custodial wallets for self‑custody.
+- UX & settlement model: Sellers receive consolidated settlement on the Base or other destination network (via the deployed Hook Executor) while buyers can originate payments from Ethereum, Arbitrum, Base or other CCTP‑supported chains. Users can onboard either via SSO (e.g., Google) for a familiar flow or using non‑custodial wallets for self‑custody.
 
 ## Features
 - Multichain receive + finalize flow using CCTP v2
