@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import Image from 'next/image';
 import BuyButton from './BuyButton';
 
@@ -51,6 +51,43 @@ export const ItemCard: React.FC<ItemCardProps> = ({
     }
   };
 
+  // Share menu + copy/share helpers
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const baseUrl = 'https://cartfree-web3-payment.vercel.app';
+  const itemUrl = `${baseUrl}/item/${item.id}`;
+
+  const toggleShareMenu = useCallback((e?: React.MouseEvent) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    setShowShareMenu((v) => !v);
+  }, []);
+
+  const handleCopyLink = useCallback(async (e?: React.MouseEvent) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    try {
+      await navigator.clipboard.writeText(itemUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt('Copy this link', itemUrl);
+    }
+    setShowShareMenu(false);
+  }, [itemUrl]);
+
+  const handleShareX = useCallback((e?: React.MouseEvent) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(item.title)}&url=${encodeURIComponent(itemUrl)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setShowShareMenu(false);
+  }, [itemUrl, item.title]);
+
+  const handleShareWhatsApp = useCallback((e?: React.MouseEvent) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(item.title + ' ' + itemUrl)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setShowShareMenu(false);
+  }, [itemUrl, item.title]);
+
   const cardContent = (
     <div className="item-content">
       <div className="item-info">
@@ -67,14 +104,51 @@ export const ItemCard: React.FC<ItemCardProps> = ({
             </div>
           )}
         </div>
-        {showBuyButton && !isOwnItem && onBuyItem && (
-          <BuyButton
-            onClick={handleBuyClick}
-            loading={buyLoading}
-            label={buyLabel ?? undefined}
-            style={{ marginTop: '15px' }}
-          />
-        )}
+        <div className="item-actions" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 15, position: 'relative', zIndex: 1, minWidth: 0 }}>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={toggleShareMenu}
+              aria-label="Share"
+              style={{
+                background: '#f3f4f6',
+                borderRadius: 8,
+                padding: 6,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 36,
+                height: 36,
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+              title="Share"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M8.59 13.51L15.42 17.49" />
+                <path d="M15.41 6.51L8.59 10.49" />
+              </svg>
+            </button>
+            {showShareMenu && (
+              <div className="share-menu" style={{ position: 'absolute', right: 0, top: '44px', background: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,0.08)', borderRadius: 8, padding: 4, zIndex: 1000, minWidth: 160 }}>
+                <button onClick={handleCopyLink} style={{ display: 'block', width: '100%', padding: '8px 10px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>{copied ? 'Link copied' : 'Copy link'}</button>
+                <button onClick={handleShareX} style={{ display: 'block', width: '100%', padding: '8px 10px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>Share to X</button>
+                <button onClick={handleShareWhatsApp} style={{ display: 'block', width: '100%', padding: '8px 10px', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer' }}>Share to WhatsApp</button>
+              </div>
+            )}
+          </div>
+          {showBuyButton && !isOwnItem && onBuyItem && (
+            <BuyButton
+              onClick={handleBuyClick}
+              loading={buyLoading}
+              label={buyLabel ?? undefined}
+              style={{ marginTop: '0px' }}
+            />
+          )}
+        </div>
       </div>
       {item.image_url && (
         <div className="item-image-right">
